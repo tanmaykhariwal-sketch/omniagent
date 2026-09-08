@@ -947,6 +947,8 @@ git commit -m "feat: add authenticated chat endpoint with router integration and
 
 ---
 
+> **Superseded:** Tasks 6 and 7's client files were already built directly (with real visual craft — see `DESIGN.md` at repo root, "Command Palette" world) rather than the plain unstyled JSX below. The files exist at `client/src/{App,LoginPage,ChatPage,api}.jsx`+`.js` and `client/src/styles.css`, verified in-browser at desktop/mobile. Treat Tasks 6-7 below as historical reference only — do not overwrite the existing styled files with this section's code.
+
 ### Task 6: Frontend scaffold + login/register page
 
 **Files:**
