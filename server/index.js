@@ -3,6 +3,7 @@ const express = require('express');
 const session = require('express-session');
 const { SqliteSessionStore } = require('./sqlite-session-store');
 const { authRouter } = require('./auth');
+const { chatRouter } = require('./chat');
 
 function createApp() {
   const app = express();
@@ -17,6 +18,7 @@ function createApp() {
 
   app.get('/health', (req, res) => res.json({ ok: true, identity: 'OmniAgent' }));
   app.use(authRouter);
+  app.use(chatRouter);
 
   return app;
 }
