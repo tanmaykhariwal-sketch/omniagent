@@ -13,7 +13,7 @@ This spec covers **core only**: chat, auth, routing/fallback across text backend
 - Web app: React (Vite) frontend, Node/Express backend, single repo.
 - Email/password auth with hashed passwords and server-side sessions.
 - Chat interface: single conversation view, send message, get unified response.
-- Router: ordered list of enabled text-generation backends, selected from which API keys are present in environment config. On failure (error, rate limit, timeout) of the current backend, automatically retries the next one in order, transparently to the user.
+- Router: classifies each prompt into a task category (coding, summarization, creative, classification, fast/simple, general) via keyword heuristics, sends it to the backend specialist for that category, and falls back through remaining configured backends (in a fixed default order) on failure — transparently to the user.
 - SQLite persistence: users, sessions, and a log of every query/response/backend-used/timestamp.
 - Minimal UI: chat + a few quick-action prompt presets (e.g. "Summarize", "Explain code", "Draft email") that just pre-fill the input — no separate feature pages.
 
@@ -36,15 +36,30 @@ Express server
    └── SQLite (better-sqlite3): users, sessions, queries
         |
         v
-Router module: ordered adapter list built from env keys present
-   -> tries adapter[0].send(prompt); on failure -> adapter[1]...; on all fail -> generic error to user
-Adapters: thin per-backend clients (Claude, OpenAI, Gemini, Mistral, Cohere, HF-text — whichever keys exist)
+Classifier: prompt -> category (keyword heuristics, no extra API call)
+Router: category -> primary specialist adapter (if configured), else falls through
+   remaining configured adapters in default order -> on all fail -> generic error to user
+Adapters: thin per-backend clients (Claude, OpenAI, Gemini, Mistral, Cohere, Kimi, HF-text — whichever keys exist)
 ```
+
+## Task categories and specialist backends
+
+| Category | Keyword trigger examples | Primary backend |
+|---|---|---|
+| coding | code, function, debug, stack trace, python, javascript, algorithm, \`\`\` fences | Kimi |
+| summarization | summarize, summary, analyze, analysis | Anthropic (Claude) |
+| creative | brainstorm, story, poem, creative, blog post | Gemini |
+| classification | classify, categorize | Cohere |
+| fast | quick, short answer | Mistral |
+| general | (no match — default) | OpenAI |
+
+If the category's primary backend has no configured key, or its call fails, the router falls back through the remaining configured adapters in this fixed default order: OpenAI, Anthropic, Gemini, Kimi, Mistral, Cohere, Hugging Face (skipping the one already tried).
 
 ## Components
 
-- **Adapters** (`server/adapters/*.js`): one file per backend, each exporting `send(prompt) -> string`, throwing on failure. Adapter internals (API shape, base URL, model name) are fully encapsulated — router never sees provider specifics beyond a name used only for logging.
-- **Router** (`server/router.js`): reads which adapters are configured (API key env var present), builds ordered list (order configurable, default = order keys were given), exposes `route(prompt) -> { text, backendUsed }`. Backend name is logged to DB but never returned to the frontend.
+- **Adapters** (`server/adapters/*.js`): one file per backend (Anthropic, OpenAI, Gemini, Mistral, Cohere, Kimi, Hugging Face), each exporting `{ name, isConfigured(), send(prompt) -> string }`, throwing on failure. Adapter internals (API shape, base URL, model name) are fully encapsulated — router never sees provider specifics beyond a name used only for logging.
+- **Classifier** (`server/classify.js`): pure function `classify(prompt) -> category`, keyword/regex based, no network call.
+- **Router** (`server/router.js`): classifies the prompt, picks the configured primary specialist for that category, falls back through the rest of the configured adapters in default order, exposes `route(prompt) -> { text, backendUsed, category }`. Backend name and category are logged to DB but never returned to the frontend.
 - **Auth** (`server/auth.js`): register/login/logout using bcrypt password hashing, express-session with SQLite session store.
 - **DB** (`server/db.js`): better-sqlite3, schema below, synchronous simple queries (fine at this scale).
 - **Frontend** (`client/`): React + Vite. Pages: Login/Register, Chat. Chat page: message list, input box, 3-4 quick-action buttons that prefill input text. No icons/branding beyond "OmniAgent" wordmark.
@@ -53,7 +68,7 @@ Adapters: thin per-backend clients (Claude, OpenAI, Gemini, Mistral, Cohere, HF-
 
 ```sql
 users(id INTEGER PK, email TEXT UNIQUE, password_hash TEXT, created_at TEXT)
-queries(id INTEGER PK, user_id INTEGER, prompt TEXT, response TEXT, backend_used TEXT, created_at TEXT)
+queries(id INTEGER PK, user_id INTEGER, prompt TEXT, response TEXT, backend_used TEXT, category TEXT, created_at TEXT)
 -- sessions table auto-managed by connect-sqlite3 session store
 ```
 
@@ -65,10 +80,11 @@ queries(id INTEGER PK, user_id INTEGER, prompt TEXT, response TEXT, backend_used
 
 ## Testing
 
-- Unit tests for router fallback logic (mock adapters: first throws, second succeeds → correct response + correct logged backend; all throw → generic error).
+- Unit tests for classifier (each category's keywords map correctly, unmatched text maps to "general").
+- Unit tests for router (primary specialist used when configured and it succeeds; falls through to next configured adapter on failure or when primary unconfigured; all throw → generic error).
 - Unit tests for auth (register duplicate email rejected, login wrong password rejected, session persists).
 - Manual browser check of chat flow end-to-end with at least one real backend key.
 
 ## Config
 
-- `.env` (gitignored): `PORT`, `SESSION_SECRET`, and one env var per backend key, e.g. `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `MISTRAL_API_KEY`, `COHERE_API_KEY`, `HF_API_KEY`. Router order = a fixed priority list in code, filtered to keys actually present.
+- `.env` (gitignored): `PORT`, `SESSION_SECRET`, and one env var per backend key: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `MISTRAL_API_KEY`, `COHERE_API_KEY`, `KIMI_API_KEY`, `HF_API_KEY`. Category-to-backend mapping and default fallback order are fixed in code, filtered to keys actually present.

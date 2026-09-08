@@ -112,6 +112,7 @@ OPENAI_API_KEY=
 GEMINI_API_KEY=
 MISTRAL_API_KEY=
 COHERE_API_KEY=
+KIMI_API_KEY=
 HF_API_KEY=
 ```
 
@@ -140,7 +141,7 @@ function createApp() {
 }
 
 if (require.main === module) {
-  const hasAnyKey = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY', 'MISTRAL_API_KEY', 'COHERE_API_KEY', 'HF_API_KEY']
+  const hasAnyKey = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY', 'MISTRAL_API_KEY', 'COHERE_API_KEY', 'KIMI_API_KEY', 'HF_API_KEY']
     .some((k) => !!process.env[k]);
   if (!hasAnyKey) {
     console.error('No backend API keys configured. Set at least one in .env before starting.');
@@ -249,6 +250,7 @@ function getDb() {
       prompt TEXT NOT NULL,
       response TEXT NOT NULL,
       backend_used TEXT NOT NULL,
+      category TEXT NOT NULL,
       created_at TEXT NOT NULL
     );
   `);
@@ -410,7 +412,7 @@ git commit -m "feat: add register/login/logout auth with bcrypt and sessions"
 
 ---
 
-### Task 4: Backend adapters + router with fallback
+### Task 4: Backend adapters + classifier + router with category routing and fallback
 
 **Files:**
 - Create: `server/adapters/anthropic.js`
@@ -418,15 +420,85 @@ git commit -m "feat: add register/login/logout auth with bcrypt and sessions"
 - Create: `server/adapters/gemini.js`
 - Create: `server/adapters/mistral.js`
 - Create: `server/adapters/cohere.js`
+- Create: `server/adapters/kimi.js`
 - Create: `server/adapters/huggingface.js`
+- Create: `server/classify.js`
 - Create: `server/router.js`
+- Test: `test/classify.test.js`
 - Test: `test/router.test.js`
 
 **Interfaces:**
 - Each adapter module exports `{ name: string, isConfigured: () => boolean, send: (prompt: string) => Promise<string> }`. `send` throws on any failure (HTTP error, network error, non-2xx).
-- Produces: `server/router.js` exports `buildRouter(adapters)` (takes array, for testability) and `route(prompt)` (the real singleton using the actual adapter list) returning `{ text: string, backendUsed: string }`, throwing `Error('all backends unavailable')` if every adapter fails.
+- Produces: `server/classify.js` exports `classify(prompt: string) -> category: string`, one of `'coding' | 'summarization' | 'creative' | 'classification' | 'fast' | 'general'`.
+- Produces: `server/router.js` exports `buildRouter(adapters, options)` (options: `{ classify, categoryPrimary }`, both optional, for testability) and `route(prompt)` (the real singleton using the actual adapter list) returning `{ text: string, backendUsed: string, category: string }`, throwing `Error('all backends unavailable')` if every configured adapter fails. Also exports `CATEGORY_PRIMARY` (the real category→backend-name map) for reference/tests.
 
-- [ ] **Step 1: Write failing test (uses fake adapters, no real network calls)**
+- [ ] **Step 1: Write failing test for classifier**
+
+```js
+const test = require('node:test');
+const assert = require('node:assert');
+const { classify } = require('../server/classify.js');
+
+test('classifies coding prompts', () => {
+  assert.strictEqual(classify('debug this python function, it throws an error'), 'coding');
+  assert.strictEqual(classify('```js\nfoo()\n```'), 'coding');
+});
+
+test('classifies summarization prompts', () => {
+  assert.strictEqual(classify('summarize this article for me'), 'summarization');
+  assert.strictEqual(classify('please analyze this report'), 'summarization');
+});
+
+test('classifies creative prompts', () => {
+  assert.strictEqual(classify('brainstorm ideas for a birthday party'), 'creative');
+  assert.strictEqual(classify('write a short story about a robot'), 'creative');
+});
+
+test('classifies classification prompts', () => {
+  assert.strictEqual(classify('classify this list of animals'), 'classification');
+});
+
+test('classifies fast prompts', () => {
+  assert.strictEqual(classify('give me a quick answer'), 'fast');
+});
+
+test('defaults unmatched prompts to general', () => {
+  assert.strictEqual(classify('what is the capital of France?'), 'general');
+});
+```
+
+- [ ] **Step 2: Run test to verify it fails**
+
+Run: `npm test -- test/classify.test.js`
+Expected: FAIL — module not found
+
+- [ ] **Step 3: Write server/classify.js**
+
+```js
+const RULES = [
+  { category: 'coding', pattern: /```|\bcode\b|\bfunction\b|\bdebug\b|\bstack trace\b|\bpython\b|\bjavascript\b|\balgorithm\b/i },
+  { category: 'summarization', pattern: /\bsummarize\b|\bsummary\b|\banalyz(e|is)\b/i },
+  { category: 'creative', pattern: /\bbrainstorm\b|\bstory\b|\bpoem\b|\bcreative\b|\bblog post\b/i },
+  { category: 'classification', pattern: /\bclassify\b|\bcategoriz(e|ation)\b/i },
+  { category: 'fast', pattern: /\bquick\b|\bshort answer\b/i },
+];
+
+function classify(prompt) {
+  for (const rule of RULES) {
+    if (rule.pattern.test(prompt)) return rule.category;
+  }
+  return 'general';
+}
+
+module.exports = { classify };
+```
+
+- [ ] **Step 4: Run classifier test to verify it passes**
+
+Run: `npm test -- test/classify.test.js`
+Expected: PASS (6 tests)
+
+- [ ] **Step 5: Write failing test for router (uses fake adapters, no real network calls)**
 
 ```js
 const test = require('node:test');
@@ -444,38 +516,64 @@ function fakeAdapter(name, behavior) {
   };
 }
 
-test('falls through to next adapter on failure', async () => {
-  const router = buildRouter([fakeAdapter('first', 'fail'), fakeAdapter('second', 'ok')]);
+const categoryPrimary = { coding: 'specialist', general: 'generalist' };
+const alwaysGeneral = () => 'general';
+const alwaysCoding = () => 'coding';
+
+test('uses the category primary when configured and it succeeds', async () => {
+  const router = buildRouter(
+    [fakeAdapter('generalist', 'ok'), fakeAdapter('specialist', 'ok')],
+    { classify: alwaysCoding, categoryPrimary }
+  );
+  const result = await router.route('fix this bug');
+  assert.strictEqual(result.backendUsed, 'specialist');
+  assert.strictEqual(result.category, 'coding');
+});
+
+test('falls through to another configured adapter when primary fails', async () => {
+  const router = buildRouter(
+    [fakeAdapter('generalist', 'ok'), fakeAdapter('specialist', 'fail')],
+    { classify: alwaysCoding, categoryPrimary }
+  );
+  const result = await router.route('fix this bug');
+  assert.strictEqual(result.backendUsed, 'generalist');
+});
+
+test('falls through when primary is not configured', async () => {
+  const unconfiguredSpecialist = { name: 'specialist', isConfigured: () => false, send: async () => { throw new Error('should not be called'); } };
+  const router = buildRouter(
+    [fakeAdapter('generalist', 'ok'), unconfiguredSpecialist],
+    { classify: alwaysCoding, categoryPrimary }
+  );
+  const result = await router.route('fix this bug');
+  assert.strictEqual(result.backendUsed, 'generalist');
+});
+
+test('throws when all configured adapters fail', async () => {
+  const router = buildRouter(
+    [fakeAdapter('generalist', 'fail'), fakeAdapter('specialist', 'fail')],
+    { classify: alwaysCoding, categoryPrimary }
+  );
+  await assert.rejects(() => router.route('fix this bug'), /all backends unavailable/);
+});
+
+test('uses general-category primary for unmatched prompts', async () => {
+  const router = buildRouter(
+    [fakeAdapter('generalist', 'ok'), fakeAdapter('specialist', 'ok')],
+    { classify: alwaysGeneral, categoryPrimary }
+  );
   const result = await router.route('hello');
-  assert.strictEqual(result.text, 'second: hello');
-  assert.strictEqual(result.backendUsed, 'second');
-});
-
-test('uses first adapter when it succeeds', async () => {
-  const router = buildRouter([fakeAdapter('first', 'ok'), fakeAdapter('second', 'ok')]);
-  const result = await router.route('hi');
-  assert.strictEqual(result.backendUsed, 'first');
-});
-
-test('throws when all adapters fail', async () => {
-  const router = buildRouter([fakeAdapter('first', 'fail'), fakeAdapter('second', 'fail')]);
-  await assert.rejects(() => router.route('x'), /all backends unavailable/);
-});
-
-test('skips unconfigured adapters', async () => {
-  const unconfigured = { name: 'unset', isConfigured: () => false, send: async () => { throw new Error('should not be called'); } };
-  const router = buildRouter([unconfigured, fakeAdapter('second', 'ok')]);
-  const result = await router.route('x');
-  assert.strictEqual(result.backendUsed, 'second');
+  assert.strictEqual(result.backendUsed, 'generalist');
+  assert.strictEqual(result.category, 'general');
 });
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [ ] **Step 6: Run test to verify it fails**
 
 Run: `npm test -- test/router.test.js`
 Expected: FAIL — module not found
 
-- [ ] **Step 3: Write the six adapter files**
+- [ ] **Step 7: Write the seven adapter files**
 
 `server/adapters/anthropic.js`:
 ```js
@@ -603,6 +701,32 @@ module.exports = {
 };
 ```
 
+`server/adapters/kimi.js`:
+```js
+const NAME = 'kimi';
+
+module.exports = {
+  name: NAME,
+  isConfigured: () => !!process.env.KIMI_API_KEY,
+  async send(prompt) {
+    const res = await fetch('https://api.moonshot.ai/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${process.env.KIMI_API_KEY}`,
+      },
+      body: JSON.stringify({
+        model: 'kimi-k2-0711-preview',
+        messages: [{ role: 'user', content: prompt }],
+      }),
+    });
+    if (!res.ok) throw new Error(`kimi http ${res.status}`);
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content || '';
+  },
+};
+```
+
 `server/adapters/huggingface.js`:
 ```js
 const NAME = 'huggingface';
@@ -627,26 +751,46 @@ module.exports = {
 };
 ```
 
-- [ ] **Step 4: Write server/router.js**
+- [ ] **Step 8: Write server/router.js**
 
 ```js
+const { classify } = require('./classify');
 const anthropic = require('./adapters/anthropic');
 const openai = require('./adapters/openai');
 const gemini = require('./adapters/gemini');
 const mistral = require('./adapters/mistral');
 const cohere = require('./adapters/cohere');
+const kimi = require('./adapters/kimi');
 const huggingface = require('./adapters/huggingface');
 
-const PRIORITY_ORDER = [anthropic, openai, gemini, mistral, cohere, huggingface];
+const DEFAULT_ADAPTERS = [openai, anthropic, gemini, kimi, mistral, cohere, huggingface];
 
-function buildRouter(adapters) {
+const CATEGORY_PRIMARY = {
+  coding: 'kimi',
+  summarization: 'anthropic',
+  creative: 'gemini',
+  classification: 'cohere',
+  fast: 'mistral',
+  general: 'openai',
+};
+
+function buildRouter(adapters, options = {}) {
+  const classifyFn = options.classify || classify;
+  const categoryPrimary = options.categoryPrimary || CATEGORY_PRIMARY;
+
   return {
     async route(prompt) {
       const configured = adapters.filter((a) => a.isConfigured());
-      for (const adapter of configured) {
+      const category = classifyFn(prompt);
+      const primaryName = categoryPrimary[category];
+      const primary = configured.find((a) => a.name === primaryName);
+      const rest = configured.filter((a) => a.name !== primaryName);
+      const order = primary ? [primary, ...rest] : rest;
+
+      for (const adapter of order) {
         try {
           const text = await adapter.send(prompt);
-          return { text, backendUsed: adapter.name };
+          return { text, backendUsed: adapter.name, category };
         } catch (err) {
           continue;
         }
@@ -656,21 +800,26 @@ function buildRouter(adapters) {
   };
 }
 
-const defaultRouter = buildRouter(PRIORITY_ORDER);
+const defaultRouter = buildRouter(DEFAULT_ADAPTERS);
 
-module.exports = { buildRouter, route: defaultRouter.route };
+module.exports = { buildRouter, route: defaultRouter.route, CATEGORY_PRIMARY };
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [ ] **Step 9: Run test to verify it passes**
 
 Run: `npm test -- test/router.test.js`
-Expected: PASS (4 tests)
+Expected: PASS (5 tests)
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 10: Run full adapter/classifier/router test group**
+
+Run: `npm test -- test/classify.test.js test/router.test.js`
+Expected: all PASS (11 tests)
+
+- [ ] **Step 11: Commit**
 
 ```bash
-git add server/adapters server/router.js test/router.test.js
-git commit -m "feat: add backend adapters and router with automatic fallback"
+git add server/adapters server/classify.js server/router.js test/classify.test.js test/router.test.js
+git commit -m "feat: add backend adapters, keyword classifier, and category-based router with fallback"
 ```
 
 ---
@@ -762,10 +911,10 @@ chatRouter.post('/chat', requireAuth, async (req, res) => {
   }
 
   try {
-    const { text, backendUsed } = await route(prompt);
+    const { text, backendUsed, category } = await route(prompt);
     const db = getDb();
-    db.prepare('INSERT INTO queries (user_id, prompt, response, backend_used, created_at) VALUES (?, ?, ?, ?, ?)')
-      .run(req.session.userId, prompt, text, backendUsed, new Date().toISOString());
+    db.prepare('INSERT INTO queries (user_id, prompt, response, backend_used, category, created_at) VALUES (?, ?, ?, ?, ?, ?)')
+      .run(req.session.userId, prompt, text, backendUsed, category, new Date().toISOString());
     res.json({ response: text });
   } catch (err) {
     res.status(503).json({ error: 'OmniAgent is temporarily unavailable, try again shortly' });
