@@ -5,10 +5,16 @@ const { getDb } = require('./db');
 
 const chatRouter = express.Router();
 
+const MAX_PROMPT_LENGTH = 4000;
+
 chatRouter.post('/chat', requireAuth, async (req, res) => {
-  const { prompt } = req.body || {};
-  if (!prompt || typeof prompt !== 'string') {
+  const raw = req.body || {};
+  const prompt = typeof raw.prompt === 'string' ? raw.prompt.trim() : '';
+  if (!prompt) {
     return res.status(400).json({ error: 'prompt required' });
+  }
+  if (prompt.length > MAX_PROMPT_LENGTH) {
+    return res.status(400).json({ error: `prompt too long (max ${MAX_PROMPT_LENGTH} characters)` });
   }
 
   try {

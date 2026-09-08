@@ -15,5 +15,5 @@ test('getDb creates users, queries, and sessions tables', () => {
   assert.ok(tables.includes('queries'));
   assert.ok(tables.includes('sessions'));
   closeDb();
-  fs.rmSync(TEST_DB, { force: true });
+  fs.rmSync(TEST_DB, { force: true, maxRetries: 5, retryDelay: 100 });
 });

@@ -46,5 +46,5 @@ test('register, login, logout flow', async () => {
   server.close();
   const { closeDb } = require('../server/db.js');
   closeDb();
-  fs.rmSync(TEST_DB, { force: true });
+  fs.rmSync(TEST_DB, { force: true, maxRetries: 5, retryDelay: 100 });
 });

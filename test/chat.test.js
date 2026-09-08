@@ -43,8 +43,22 @@ test('chat requires auth, then routes and logs', async () => {
   const chatBody = await chatRes.json();
   assert.ok(!/anthropic|openai|gemini|mistral|cohere|huggingface|kimi/i.test(JSON.stringify(chatBody)));
 
+  const whitespaceOnly = await fetch(`${base}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    body: JSON.stringify({ prompt: '   ' }),
+  });
+  assert.strictEqual(whitespaceOnly.status, 400);
+
+  const tooLong = await fetch(`${base}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    body: JSON.stringify({ prompt: 'x'.repeat(4001) }),
+  });
+  assert.strictEqual(tooLong.status, 400);
+
   server.close();
   const { closeDb } = require('../server/db.js');
   closeDb();
-  fs.rmSync(TEST_DB, { force: true });
+  fs.rmSync(TEST_DB, { force: true, maxRetries: 5, retryDelay: 100 });
 });
