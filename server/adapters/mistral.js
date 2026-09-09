@@ -1,10 +1,11 @@
+const { fetchWithTimeout } = require('../fetch-timeout');
 const NAME = 'mistral';
 
 module.exports = {
   name: NAME,
   isConfigured: () => !!process.env.MISTRAL_API_KEY,
   async send(prompt) {
-    const res = await fetch('https://api.mistral.ai/v1/chat/completions', {
+    const res = await fetchWithTimeout('https://api.mistral.ai/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

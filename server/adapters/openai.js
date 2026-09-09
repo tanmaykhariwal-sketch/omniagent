@@ -1,10 +1,11 @@
+const { fetchWithTimeout } = require('../fetch-timeout');
 const NAME = 'openai';
 
 module.exports = {
   name: NAME,
   isConfigured: () => !!process.env.OPENAI_API_KEY,
   async send(prompt) {
-    const res = await fetch('https://api.openai.com/v1/chat/completions', {
+    const res = await fetchWithTimeout('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

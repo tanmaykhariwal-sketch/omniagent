@@ -1,3 +1,4 @@
+const { fetchWithTimeout } = require('../fetch-timeout');
 const NAME = 'huggingface';
 const MODEL = 'mistralai/Mistral-7B-Instruct-v0.3';
 
@@ -5,7 +6,7 @@ module.exports = {
   name: NAME,
   isConfigured: () => !!process.env.HF_API_KEY,
   async send(prompt) {
-    const res = await fetch(`https://api-inference.huggingface.co/models/${MODEL}`, {
+    const res = await fetchWithTimeout(`https://api-inference.huggingface.co/models/${MODEL}`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

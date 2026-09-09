@@ -1,10 +1,11 @@
+const { fetchWithTimeout } = require('../fetch-timeout');
 const NAME = 'anthropic';
 
 module.exports = {
   name: NAME,
   isConfigured: () => !!process.env.ANTHROPIC_API_KEY,
   async send(prompt) {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetchWithTimeout('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

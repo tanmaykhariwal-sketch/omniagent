@@ -36,6 +36,7 @@ function buildRouter(adapters, options = {}) {
           const text = await adapter.send(prompt);
           return { text, backendUsed: adapter.name, category };
         } catch (err) {
+          console.warn(`[router] ${adapter.name} failed for category "${category}": ${err.message}`);
           continue;
         }
       }

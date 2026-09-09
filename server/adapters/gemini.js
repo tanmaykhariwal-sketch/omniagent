@@ -1,11 +1,12 @@
+const { fetchWithTimeout } = require('../fetch-timeout');
 const NAME = 'gemini';
 
 module.exports = {
   name: NAME,
   isConfigured: () => !!process.env.GEMINI_API_KEY,
   async send(prompt) {
-    const res = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
+    const res = await fetchWithTimeout(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key=${process.env.GEMINI_API_KEY}`,
       {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
