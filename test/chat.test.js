@@ -10,7 +10,7 @@ process.env.SESSION_SECRET = 'test-secret';
 // Force "no backend configured" regardless of a real .env on disk: dotenv
 // does not override already-set env vars, so clearing these before
 // server/index.js requires it keeps this test offline and deterministic.
-for (const key of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY', 'MISTRAL_API_KEY', 'COHERE_API_KEY', 'KIMI_API_KEY', 'HF_API_KEY']) {
+for (const key of ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY', 'MISTRAL_API_KEY', 'COHERE_API_KEY', 'KIMI_API_KEY', 'HF_API_KEY', 'LOCAL_CODING_MODEL', 'LOCAL_GENERAL_MODEL']) {
   process.env[key] = '';
 }
 
@@ -48,7 +48,7 @@ test('chat requires auth, then routes and logs', async () => {
   });
   assert.strictEqual(chatRes.status, 503);
   const chatBody = await chatRes.json();
-  assert.ok(!/anthropic|openai|gemini|mistral|cohere|huggingface|kimi/i.test(JSON.stringify(chatBody)));
+  assert.ok(!/anthropic|openai|gemini|mistral|cohere|huggingface|kimi|ollama/i.test(JSON.stringify(chatBody)));
 
   const whitespaceOnly = await fetch(`${base}/chat`, {
     method: 'POST',

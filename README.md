@@ -22,17 +22,19 @@ Note: the original plan called for `better-sqlite3`/`bcrypt`/`connect-sqlite3`, 
 
 ## Routing
 
-Prompts are classified by keyword heuristics (`server/classify.js`) into one of: coding, summarization, creative, classification, fast, general. Each category has a primary backend (Ollama-local, Anthropic, Gemini, Cohere, Mistral, OpenAI respectively); if that backend isn't configured or its call fails, the router falls through the rest of the configured backends (cloud and local) in a fixed default order. See `DESIGN.md` for the routing table and UI direction.
+Prompts are classified by keyword heuristics (`server/classify.js`) into one of: coding, summarization, creative, classification, fast, general. **Every category defaults to a free local Ollama model**; cloud API keys are the fallback if a local model isn't configured/running or its call fails. See `DESIGN.md` for the UI direction.
 
-## Local coding model (Ollama)
+## Local models (Ollama)
 
-The `coding` category defaults to a local model via [Ollama](https://ollama.com) instead of a cloud API — no key, no per-request cost, runs on your machine.
+No API key, no per-request cost, runs entirely on your machine, via [Ollama](https://ollama.com).
 
 1. Install Ollama (`winget install Ollama.Ollama` on Windows, or download from ollama.com).
-2. `ollama pull qwen2.5-coder:7b`
-3. Set `LOCAL_CODING_MODEL=qwen2.5-coder:7b` in `.env` (and `OLLAMA_BASE_URL` if Ollama isn't on the default `http://localhost:11434`).
+2. Pull the models you want:
+   - `ollama pull qwen2.5-coder:7b` — powers the `coding` category.
+   - `ollama pull qwen2.5:7b` — powers every other category (general, creative, summarization, classification, fast).
+3. Set `LOCAL_CODING_MODEL=qwen2.5-coder:7b` and/or `LOCAL_GENERAL_MODEL=qwen2.5:7b` in `.env` (and `OLLAMA_BASE_URL` if Ollama isn't on the default `http://localhost:11434`).
 
-If Ollama isn't running or the model isn't pulled, coding requests fall through to Kimi (or whichever other backend is configured) automatically — no code change needed either way.
+Either one is optional independently. If a local model isn't configured, isn't running, or its call fails, that category falls through to whichever cloud backends are configured — no code change needed either way.
 
 ## Hardening notes
 

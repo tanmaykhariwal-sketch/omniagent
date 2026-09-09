@@ -28,10 +28,10 @@ function createApp() {
 }
 
 if (require.main === module) {
-  const hasAnyKey = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY', 'MISTRAL_API_KEY', 'COHERE_API_KEY', 'KIMI_API_KEY', 'HF_API_KEY', 'LOCAL_CODING_MODEL']
+  const hasAnyKey = ['ANTHROPIC_API_KEY', 'OPENAI_API_KEY', 'GEMINI_API_KEY', 'MISTRAL_API_KEY', 'COHERE_API_KEY', 'KIMI_API_KEY', 'HF_API_KEY', 'LOCAL_CODING_MODEL', 'LOCAL_GENERAL_MODEL']
     .some((k) => !!process.env[k]);
   if (!hasAnyKey) {
-    console.error('No backend configured. Set at least one API key, or LOCAL_CODING_MODEL for a local Ollama model, in .env before starting.');
+    console.error('No backend configured. Set at least one API key, or LOCAL_CODING_MODEL/LOCAL_GENERAL_MODEL for local Ollama models, in .env before starting.');
     process.exit(1);
   }
   const app = createApp();

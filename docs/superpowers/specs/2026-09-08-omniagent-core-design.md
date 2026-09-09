@@ -39,25 +39,27 @@ Express server
 Classifier: prompt -> category (keyword heuristics, no extra API call)
 Router: category -> primary specialist adapter (if configured), else falls through
    remaining configured adapters in default order -> on all fail -> generic error to user
-Adapters: thin per-backend clients (Claude, OpenAI, Gemini, Mistral, Cohere, Kimi, HF-text — whichever keys exist; plus a local Ollama adapter, no key, opt-in via LOCAL_CODING_MODEL)
+Adapters: thin per-backend clients (Claude, OpenAI, Gemini, Mistral, Cohere, Kimi, HF-text — whichever keys exist; plus two local Ollama adapters, no key, built via a shared factory, opt-in via LOCAL_CODING_MODEL / LOCAL_GENERAL_MODEL)
 ```
 
 ## Task categories and specialist backends
 
+Every category's primary is a free local Ollama model; cloud backends are the fallback.
+
 | Category | Keyword trigger examples | Primary backend |
 |---|---|---|
-| coding | code, function, debug, stack trace, python/js/ts/java/c++/c#/go/rust/ruby/php/swift/kotlin/sql/bash/html/css, algorithm, regex, refactor, syntax error, unit tests, \`\`\` fences | Ollama (local `qwen2.5-coder:7b`, opt-in) |
-| summarization | summarize, summary, analyze, analysis | Anthropic (Claude) |
-| creative | brainstorm, story, poem, creative, blog post | Gemini |
-| classification | classify, categorize | Cohere |
-| fast | quick, short answer | Mistral |
-| general | (no match — default) | OpenAI |
+| coding | code, function, debug, stack trace, python/js/ts/java/c++/c#/go/rust/ruby/php/swift/kotlin/sql/bash/html/css, algorithm, regex, refactor, syntax error, unit tests, \`\`\` fences | ollama-coding (local `qwen2.5-coder:7b`, opt-in) |
+| summarization | summarize, summary, analyze, analysis | ollama-general (local `qwen2.5:7b`, opt-in) |
+| creative | brainstorm, story, poem, creative, blog post | ollama-general |
+| classification | classify, categorize | ollama-general |
+| fast | quick, short answer | ollama-general |
+| general | (no match — default) | ollama-general |
 
-If the category's primary backend has no configured key/model, or its call fails, the router falls back through the remaining configured adapters in this fixed default order: OpenAI, Anthropic, Gemini, Kimi, Mistral, Cohere, Hugging Face, Ollama (skipping the one already tried). So a coding prompt with no local model set up (or Ollama not running) still gets answered — it falls through to Kimi and the rest.
+If the category's primary local model isn't configured/running, or its call fails, the router falls back through the remaining configured adapters in this fixed default order: OpenAI, Anthropic, Gemini, Kimi, Mistral, Cohere, Hugging Face, ollama-coding, ollama-general (skipping the one already tried). So any category still gets answered by a cloud backend if the corresponding local model isn't set up.
 
 ## Components
 
-- **Adapters** (`server/adapters/*.js`): one file per backend (Anthropic, OpenAI, Gemini, Mistral, Cohere, Kimi, Hugging Face), each exporting `{ name, isConfigured(), send(prompt) -> string }`, throwing on failure. Adapter internals (API shape, base URL, model name) are fully encapsulated — router never sees provider specifics beyond a name used only for logging.
+- **Adapters** (`server/adapters/*.js`): one file per cloud backend (Anthropic, OpenAI, Gemini, Mistral, Cohere, Kimi, Hugging Face), each exporting `{ name, isConfigured(), send(prompt) -> string }`, throwing on failure. Two local adapters (`ollama-coding`, `ollama-general`) are built from a shared factory (`server/local-adapter.js`) that hits a local Ollama server, gated by their own model env var rather than an API key. Adapter internals (API shape, base URL, model name) are fully encapsulated — router never sees provider specifics beyond a name used only for logging.
 - **Classifier** (`server/classify.js`): pure function `classify(prompt) -> category`, keyword/regex based, no network call.
 - **Router** (`server/router.js`): classifies the prompt, picks the configured primary specialist for that category, falls back through the rest of the configured adapters in default order, exposes `route(prompt) -> { text, backendUsed, category }`. Backend name and category are logged to DB but never returned to the frontend.
 - **Auth** (`server/auth.js`): register/login/logout using bcrypt password hashing, express-session with SQLite session store.

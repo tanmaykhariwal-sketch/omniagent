@@ -6,17 +6,20 @@ const mistral = require('./adapters/mistral');
 const cohere = require('./adapters/cohere');
 const kimi = require('./adapters/kimi');
 const huggingface = require('./adapters/huggingface');
-const ollama = require('./adapters/ollama');
+const ollamaCoding = require('./adapters/ollama-coding');
+const ollamaGeneral = require('./adapters/ollama-general');
 
-const DEFAULT_ADAPTERS = [openai, anthropic, gemini, kimi, mistral, cohere, huggingface, ollama];
+const DEFAULT_ADAPTERS = [openai, anthropic, gemini, kimi, mistral, cohere, huggingface, ollamaCoding, ollamaGeneral];
 
+// Free local models (Ollama) are the default everywhere; cloud backends are
+// the fallback if a local model isn't configured/running or its call fails.
 const CATEGORY_PRIMARY = {
-  coding: 'ollama',
-  summarization: 'anthropic',
-  creative: 'gemini',
-  classification: 'cohere',
-  fast: 'mistral',
-  general: 'openai',
+  coding: 'ollama-coding',
+  summarization: 'ollama-general',
+  creative: 'ollama-general',
+  classification: 'ollama-general',
+  fast: 'ollama-general',
+  general: 'ollama-general',
 };
 
 function buildRouter(adapters, options = {}) {
