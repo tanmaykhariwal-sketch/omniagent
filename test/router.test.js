@@ -63,3 +63,46 @@ test('uses general-category primary for unmatched prompts', async () => {
   assert.strictEqual(result.backendUsed, 'generalist');
   assert.strictEqual(result.category, 'general');
 });
+
+test('falls back to keyword classify when the lead dispatch fails', async () => {
+  const router = buildRouter(
+    [fakeAdapter('generalist', 'ok'), fakeAdapter('specialist', 'ok')],
+    {
+      classify: alwaysCoding,
+      categoryPrimary,
+      decideCategories: async () => { throw new Error('lead unavailable'); },
+    }
+  );
+  const result = await router.route('fix this bug');
+  assert.strictEqual(result.backendUsed, 'specialist');
+  assert.strictEqual(result.category, 'coding');
+});
+
+test('dispatches to multiple categories and synthesizes a combined answer', async () => {
+  const router = buildRouter(
+    [fakeAdapter('generalist', 'ok'), fakeAdapter('specialist', 'ok')],
+    {
+      categoryPrimary,
+      decideCategories: async () => ['coding', 'general'],
+      synthesize: async (prompt, results) => `combined: ${results.map((r) => r.text).join(' | ')}`,
+    }
+  );
+  const result = await router.route('fix this bug and explain it simply');
+  assert.strictEqual(result.backendUsed, 'specialist+generalist');
+  assert.strictEqual(result.category, 'coding+general');
+  assert.strictEqual(result.text, 'combined: specialist: fix this bug and explain it simply | generalist: fix this bug and explain it simply');
+});
+
+test('falls back to the first specialist answer when synthesis fails', async () => {
+  const router = buildRouter(
+    [fakeAdapter('generalist', 'ok'), fakeAdapter('specialist', 'ok')],
+    {
+      categoryPrimary,
+      decideCategories: async () => ['coding', 'general'],
+      synthesize: async () => { throw new Error('synthesis unavailable'); },
+    }
+  );
+  const result = await router.route('fix this bug and explain it simply');
+  assert.strictEqual(result.backendUsed, 'specialist');
+  assert.strictEqual(result.category, 'coding');
+});

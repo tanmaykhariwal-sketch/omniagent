@@ -1,6 +1,6 @@
 # OmniAgent
 
-Single-identity chat app that classifies each request and routes it to whichever backend AI is best suited (coding, summarization, creative, classification, fast, general), with automatic fallback across the rest. Backend identity is never exposed to the user.
+Single-identity chat app that uses a lead model to decide which specialist "subagent(s)" should answer each request (coding, summarization, creative, classification, fast, general), dispatches to them, and — if more than one was needed — synthesizes their answers into one response. Backend identity is never exposed to the user.
 
 ## Stack
 
@@ -20,9 +20,13 @@ Note: the original plan called for `better-sqlite3`/`bcrypt`/`connect-sqlite3`, 
 
 `npm test` runs the backend test suite. Each `test/*.test.js` file is executed directly as its own process (not via `node --test`, which has a broken flag on this machine's node install) — `scripts/run-tests.js` handles that.
 
-## Routing
+## Routing: lead + subagents
 
-Prompts are classified by keyword heuristics (`server/classify.js`) into one of: coding, summarization, creative, classification, fast, general. **Every category defaults to a free local Ollama model**; cloud API keys are the fallback if a local model isn't configured/running or its call fails. See `DESIGN.md` for the UI direction.
+Every request goes through a **lead dispatch** step (`server/lead.js`) before anything else: the lead model reads the prompt and decides which 1-2 of six categories (coding, summarization, creative, classification, fast, general) should handle it, as a JSON decision. Each category's specialist adapter (the "subagent") then answers independently; if two categories were dispatched, one more call synthesizes both answers into a single final response. If the lead call itself fails, the app falls back to the original keyword classifier (`server/classify.js`) as a safety net, always picking exactly one category.
+
+**Every category defaults to a free local Ollama model**; cloud API keys are the fallback if a local model isn't configured/running or its call fails. See `docs/superpowers/specs/2026-09-08-omniagent-core-design.md` ("Multi-agent dispatch") for the full design, and `DESIGN.md` for the UI direction.
+
+This costs more per request than plain single-backend routing (1-4 model calls instead of 1) — an explicit tradeoff for handling multi-part prompts better, not an oversight.
 
 ## Local models (Ollama)
 

@@ -36,11 +36,30 @@ Express server
    └── SQLite (better-sqlite3): users, sessions, queries
         |
         v
-Classifier: prompt -> category (keyword heuristics, no extra API call)
-Router: category -> primary specialist adapter (if configured), else falls through
-   remaining configured adapters in default order -> on all fail -> generic error to user
+Lead dispatch: prompt -> lead model call -> 1-2 categories (JSON decision)
+   on lead failure/bad output -> keyword classifier (server/classify.js) as fallback, always 1 category
+Router: each decided category -> its primary specialist adapter (if configured),
+   else falls through remaining configured adapters in default order
+   -> 1 category answered: return its text directly
+   -> 2 categories answered: one synthesis call combines both into one final answer
+      (synthesis failure -> return the first category's answer alone, never an error)
+   -> 0 categories answered: generic error to user
 Adapters: thin per-backend clients (Claude, OpenAI, Gemini, Mistral, Cohere, Kimi, HF-text — whichever keys exist; plus two local Ollama adapters, no key, built via a shared factory, opt-in via LOCAL_CODING_MODEL / LOCAL_GENERAL_MODEL)
 ```
+
+## Multi-agent dispatch (lead + specialists)
+
+**Decision, recorded here as the durable architecture — do not revert to pure keyword routing without updating this section.** Every chat request first goes through a *lead* dispatch step (`server/lead.js`), not straight to the keyword classifier:
+
+1. The lead sends the user's prompt, wrapped in a routing-coordinator system prompt, to the first available configured adapter (tried in the same fallback order as everything else). It asks for a strict JSON decision: `{"categories": ["coding"]}` or up to two categories, e.g. `{"categories": ["coding", "summarization"]}`.
+2. Each decided category is answered by its own specialist chain exactly as before (primary local/cloud adapter, falling through the rest on failure) — these specialist adapters are the "subagents."
+3. If exactly one category produced an answer, that answer is returned as-is (no extra cost).
+4. If two categories both produced answers, one more call *synthesizes* them (`synthesize()` in `lead.js`) into a single final answer, with an explicit instruction never to mention multiple sources/specialists/AI names. If synthesis itself fails, the first specialist's answer is returned alone rather than erroring.
+5. If the lead call fails entirely (parse failure, no adapter available, timeout), the router falls back to the original single-category keyword classifier (`server/classify.js`) — this keeps the classifier as a permanent safety net, not dead code.
+
+**Cost/latency tradeoff, accepted deliberately:** a request now costs 1 (single-category, lead failed) to 4 (lead + 2 specialists + synthesis) model calls instead of always 1. This was an explicit user choice, prioritizing capability on complex/multi-part prompts over minimizing latency and per-request cost.
+
+**Adapter interface unchanged:** `send(prompt)` still takes one string; lead/synthesis instructions are prepended into that single string rather than a separate system-prompt parameter, since some adapters (the local Ollama ones) already bake in their own fixed system prompt. This is a known minor limitation, not a bug — accepted for now rather than changing every adapter's signature.
 
 ## Task categories and specialist backends
 
