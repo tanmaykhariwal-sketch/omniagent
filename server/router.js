@@ -1,19 +1,14 @@
 const { classify } = require('./classify');
 const { decideCategories, synthesize } = require('./lead');
-const anthropic = require('./adapters/anthropic');
-const openai = require('./adapters/openai');
-const gemini = require('./adapters/gemini');
-const mistral = require('./adapters/mistral');
-const cohere = require('./adapters/cohere');
-const kimi = require('./adapters/kimi');
-const huggingface = require('./adapters/huggingface');
 const ollamaCoding = require('./adapters/ollama-coding');
 const ollamaGeneral = require('./adapters/ollama-general');
 
-const DEFAULT_ADAPTERS = [openai, anthropic, gemini, kimi, mistral, cohere, huggingface, ollamaCoding, ollamaGeneral];
+const DEFAULT_ADAPTERS = [ollamaCoding, ollamaGeneral];
 
-// Free local models (Ollama) are the default everywhere; cloud backends are
-// the fallback if a local model isn't configured/running or its call fails.
+// Local-only: every category is answered by a free local Ollama model.
+// There is no cloud fallback -- if a category's local model isn't
+// configured/running, or every configured local model fails, the request
+// gets the generic "unavailable" error.
 const CATEGORY_PRIMARY = {
   coding: 'ollama-coding',
   summarization: 'ollama-general',

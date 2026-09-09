@@ -4,7 +4,9 @@ Date: 2026-09-08
 
 ## Purpose
 
-OmniAgent is a single-identity chat product that routes user requests to one of several backend text-generation AIs, with automatic fallback, while presenting itself to the user only as "OmniAgent" — no backend names, routing logic, or provider identity ever surfaced.
+OmniAgent is a single-identity chat product that routes user requests to whichever local specialist AI (subagent) is best suited, with automatic fallback and multi-subagent synthesis, while presenting itself to the user only as "OmniAgent" — no backend names, routing logic, or provider identity ever surfaced.
+
+**Local-only, no cloud dependency (decision recorded 2026-09-09):** the app originally supported seven cloud providers (Anthropic, OpenAI, Gemini, Mistral, Cohere, Kimi, Hugging Face) as adapters. All seven were removed by explicit user request after repeatedly hitting real-world friction with them (invalid/placeholder keys, exhausted billing, suspended accounts, provider-side rate limits) — see the git history around commit removing `server/adapters/{anthropic,openai,gemini,mistral,cohere,kimi,huggingface}.js` for the full reasoning. OmniAgent now runs exclusively on local Ollama models. There is no cloud fallback path; if a local model isn't configured/running, or every configured local model fails, the request simply gets the generic "unavailable" error.
 
 This spec covers **core only**: chat, auth, routing/fallback across text backends, and logging. Deferred to later specs: image generation, speech-to-text, translation, and finance/news scraping.
 
@@ -44,7 +46,7 @@ Router: each decided category -> its primary specialist adapter (if configured),
    -> 2 categories answered: one synthesis call combines both into one final answer
       (synthesis failure -> return the first category's answer alone, never an error)
    -> 0 categories answered: generic error to user
-Adapters: thin per-backend clients (Claude, OpenAI, Gemini, Mistral, Cohere, Kimi, HF-text — whichever keys exist; plus two local Ollama adapters, no key, built via a shared factory, opt-in via LOCAL_CODING_MODEL / LOCAL_GENERAL_MODEL)
+Adapters: two local Ollama adapters (ollama-coding, ollama-general), no API key, built via a shared factory (server/local-adapter.js), each gated by its own model env var (LOCAL_CODING_MODEL / LOCAL_GENERAL_MODEL). No cloud adapters exist.
 ```
 
 ## Multi-agent dispatch (lead + specialists)
@@ -63,7 +65,7 @@ Adapters: thin per-backend clients (Claude, OpenAI, Gemini, Mistral, Cohere, Kim
 
 ## Task categories and specialist backends
 
-Every category's primary is a free local Ollama model; cloud backends are the fallback.
+Every category's primary is a free local Ollama model. There is no cloud fallback.
 
 | Category | Keyword trigger examples | Primary backend |
 |---|---|---|
@@ -74,11 +76,11 @@ Every category's primary is a free local Ollama model; cloud backends are the fa
 | fast | quick, short answer | ollama-general |
 | general | (no match — default) | ollama-general |
 
-If the category's primary local model isn't configured/running, or its call fails, the router falls back through the remaining configured adapters in this fixed default order: OpenAI, Anthropic, Gemini, Kimi, Mistral, Cohere, Hugging Face, ollama-coding, ollama-general (skipping the one already tried). So any category still gets answered by a cloud backend if the corresponding local model isn't set up.
+If the category's primary local model isn't configured/running, or its call fails, the router falls back to the other local adapter (`ollama-coding` and `ollama-general` each cover for the other, skipping the one already tried). If neither is configured or both fail, the request gets the generic "unavailable" error — there is no cloud backend to fall back to.
 
 ## Components
 
-- **Adapters** (`server/adapters/*.js`): one file per cloud backend (Anthropic, OpenAI, Gemini, Mistral, Cohere, Kimi, Hugging Face), each exporting `{ name, isConfigured(), send(prompt) -> string }`, throwing on failure. Two local adapters (`ollama-coding`, `ollama-general`) are built from a shared factory (`server/local-adapter.js`) that hits a local Ollama server, gated by their own model env var rather than an API key. Adapter internals (API shape, base URL, model name) are fully encapsulated — router never sees provider specifics beyond a name used only for logging.
+- **Adapters** (`server/adapters/*.js`): two local adapters (`ollama-coding`, `ollama-general`), each exporting `{ name, isConfigured(), send(prompt) -> string }`, throwing on failure. Both are built from a shared factory (`server/local-adapter.js`) that hits a local Ollama server, gated by their own model env var (`LOCAL_CODING_MODEL` / `LOCAL_GENERAL_MODEL`) rather than an API key. No cloud adapters exist — they were deliberately removed (see Purpose).
 - **Classifier** (`server/classify.js`): pure function `classify(prompt) -> category`, keyword/regex based, no network call.
 - **Router** (`server/router.js`): classifies the prompt, picks the configured primary specialist for that category, falls back through the rest of the configured adapters in default order, exposes `route(prompt) -> { text, backendUsed, category }`. Backend name and category are logged to DB but never returned to the frontend.
 - **Auth** (`server/auth.js`): register/login/logout using bcrypt password hashing, express-session with SQLite session store.
@@ -95,17 +97,17 @@ queries(id INTEGER PK, user_id INTEGER, prompt TEXT, response TEXT, backend_used
 
 ## Error handling
 
-- All configured adapters fail → chat returns a single generic error message ("OmniAgent is temporarily unavailable, try again shortly"); no stack traces or provider errors shown to user.
+- Both local adapters fail (or neither is configured) → chat returns a single generic error message ("OmniAgent is temporarily unavailable, try again shortly"); no stack traces or provider errors shown to user.
 - Missing/invalid session on `/chat` → 401, frontend redirects to login.
-- No API keys configured at all → server fails fast at startup with a clear log message (developer-facing only).
+- Neither `LOCAL_CODING_MODEL` nor `LOCAL_GENERAL_MODEL` set → server fails fast at startup with a clear log message (developer-facing only).
 
 ## Testing
 
 - Unit tests for classifier (each category's keywords map correctly, unmatched text maps to "general").
 - Unit tests for router (primary specialist used when configured and it succeeds; falls through to next configured adapter on failure or when primary unconfigured; all throw → generic error).
 - Unit tests for auth (register duplicate email rejected, login wrong password rejected, session persists).
-- Manual browser check of chat flow end-to-end with at least one real backend key.
+- Manual browser check of chat flow end-to-end with at least one local model configured and Ollama running.
 
 ## Config
 
-- `.env` (gitignored): `PORT`, `SESSION_SECRET`, and one env var per backend key: `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `MISTRAL_API_KEY`, `COHERE_API_KEY`, `KIMI_API_KEY`, `HF_API_KEY`. Category-to-backend mapping and default fallback order are fixed in code, filtered to keys actually present.
+- `.env` (gitignored): `PORT`, `SESSION_SECRET`, `OLLAMA_BASE_URL` (defaults to `http://localhost:11434`), `LOCAL_CODING_MODEL`, `LOCAL_GENERAL_MODEL`. No cloud API keys exist. Category-to-backend mapping and fallback order are fixed in code, filtered to whichever local model env vars are actually set.
