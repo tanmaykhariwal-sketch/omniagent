@@ -11,9 +11,9 @@ Note: the original plan called for `better-sqlite3`/`bcrypt`/`connect-sqlite3`, 
 
 ## Setup
 
-1. `cp .env.example .env` and fill in `SESSION_SECRET` plus at least one backend API key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `MISTRAL_API_KEY`, `COHERE_API_KEY`, `KIMI_API_KEY`, `HF_API_KEY`).
+1. `cp .env.example .env` and fill in `SESSION_SECRET` plus at least one backend API key (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GEMINI_API_KEY`, `MISTRAL_API_KEY`, `COHERE_API_KEY`, `KIMI_API_KEY`, `HF_API_KEY`) — or set up the local coding model below.
 2. `npm install`
-3. `npm start` — runs the API server on `PORT` (default 3000). Refuses to start if no backend key is configured.
+3. `npm start` — runs the API server on `PORT` (default 3000). Refuses to start if no backend (cloud key or local model) is configured.
 4. In a second terminal: `cd client && npm install && npm run dev` — runs the frontend dev server, proxying `/register`, `/login`, `/logout`, `/chat` to the backend.
 
 ## Tests
@@ -22,7 +22,17 @@ Note: the original plan called for `better-sqlite3`/`bcrypt`/`connect-sqlite3`, 
 
 ## Routing
 
-Prompts are classified by keyword heuristics (`server/classify.js`) into one of: coding, summarization, creative, classification, fast, general. Each category has a primary backend (Kimi, Anthropic, Gemini, Cohere, Mistral, OpenAI respectively); if that backend isn't configured or its call fails, the router falls through the rest of the configured backends in a fixed default order. See `DESIGN.md` for the routing table and UI direction.
+Prompts are classified by keyword heuristics (`server/classify.js`) into one of: coding, summarization, creative, classification, fast, general. Each category has a primary backend (Ollama-local, Anthropic, Gemini, Cohere, Mistral, OpenAI respectively); if that backend isn't configured or its call fails, the router falls through the rest of the configured backends (cloud and local) in a fixed default order. See `DESIGN.md` for the routing table and UI direction.
+
+## Local coding model (Ollama)
+
+The `coding` category defaults to a local model via [Ollama](https://ollama.com) instead of a cloud API — no key, no per-request cost, runs on your machine.
+
+1. Install Ollama (`winget install Ollama.Ollama` on Windows, or download from ollama.com).
+2. `ollama pull qwen2.5-coder:7b`
+3. Set `LOCAL_CODING_MODEL=qwen2.5-coder:7b` in `.env` (and `OLLAMA_BASE_URL` if Ollama isn't on the default `http://localhost:11434`).
+
+If Ollama isn't running or the model isn't pulled, coding requests fall through to Kimi (or whichever other backend is configured) automatically — no code change needed either way.
 
 ## Hardening notes
 

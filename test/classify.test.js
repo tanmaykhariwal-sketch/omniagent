@@ -7,6 +7,17 @@ test('classifies coding prompts', () => {
   assert.strictEqual(classify('```js\nfoo()\n```'), 'coding');
 });
 
+test('classifies prompts naming other languages/tools as coding', () => {
+  assert.strictEqual(classify('write a rust program that reverses a string'), 'coding');
+  assert.strictEqual(classify('why does this sql query return no rows'), 'coding');
+  assert.strictEqual(classify('refactor this typescript class'), 'coding');
+  assert.strictEqual(classify('fix this syntax error in my c++ code'), 'coding');
+});
+
+test('does not misclassify plain english containing "go"', () => {
+  assert.strictEqual(classify('should I go to the store today?'), 'general');
+});
+
 test('classifies summarization prompts', () => {
   assert.strictEqual(classify('summarize this article for me'), 'summarization');
   assert.strictEqual(classify('please analyze this report'), 'summarization');

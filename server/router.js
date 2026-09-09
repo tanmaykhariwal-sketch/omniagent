@@ -6,11 +6,12 @@ const mistral = require('./adapters/mistral');
 const cohere = require('./adapters/cohere');
 const kimi = require('./adapters/kimi');
 const huggingface = require('./adapters/huggingface');
+const ollama = require('./adapters/ollama');
 
-const DEFAULT_ADAPTERS = [openai, anthropic, gemini, kimi, mistral, cohere, huggingface];
+const DEFAULT_ADAPTERS = [openai, anthropic, gemini, kimi, mistral, cohere, huggingface, ollama];
 
 const CATEGORY_PRIMARY = {
-  coding: 'kimi',
+  coding: 'ollama',
   summarization: 'anthropic',
   creative: 'gemini',
   classification: 'cohere',

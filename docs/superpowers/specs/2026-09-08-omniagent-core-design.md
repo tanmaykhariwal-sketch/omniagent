@@ -39,21 +39,21 @@ Express server
 Classifier: prompt -> category (keyword heuristics, no extra API call)
 Router: category -> primary specialist adapter (if configured), else falls through
    remaining configured adapters in default order -> on all fail -> generic error to user
-Adapters: thin per-backend clients (Claude, OpenAI, Gemini, Mistral, Cohere, Kimi, HF-text — whichever keys exist)
+Adapters: thin per-backend clients (Claude, OpenAI, Gemini, Mistral, Cohere, Kimi, HF-text — whichever keys exist; plus a local Ollama adapter, no key, opt-in via LOCAL_CODING_MODEL)
 ```
 
 ## Task categories and specialist backends
 
 | Category | Keyword trigger examples | Primary backend |
 |---|---|---|
-| coding | code, function, debug, stack trace, python, javascript, algorithm, \`\`\` fences | Kimi |
+| coding | code, function, debug, stack trace, python/js/ts/java/c++/c#/go/rust/ruby/php/swift/kotlin/sql/bash/html/css, algorithm, regex, refactor, syntax error, unit tests, \`\`\` fences | Ollama (local `qwen2.5-coder:7b`, opt-in) |
 | summarization | summarize, summary, analyze, analysis | Anthropic (Claude) |
 | creative | brainstorm, story, poem, creative, blog post | Gemini |
 | classification | classify, categorize | Cohere |
 | fast | quick, short answer | Mistral |
 | general | (no match — default) | OpenAI |
 
-If the category's primary backend has no configured key, or its call fails, the router falls back through the remaining configured adapters in this fixed default order: OpenAI, Anthropic, Gemini, Kimi, Mistral, Cohere, Hugging Face (skipping the one already tried).
+If the category's primary backend has no configured key/model, or its call fails, the router falls back through the remaining configured adapters in this fixed default order: OpenAI, Anthropic, Gemini, Kimi, Mistral, Cohere, Hugging Face, Ollama (skipping the one already tried). So a coding prompt with no local model set up (or Ollama not running) still gets answered — it falls through to Kimi and the rest.
 
 ## Components
 
