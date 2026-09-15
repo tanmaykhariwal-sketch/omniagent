@@ -18,4 +18,15 @@ const chatLimiter = rateLimit({
   message: { error: 'too many requests, slow down' },
 });
 
-module.exports = { authLimiter, chatLimiter };
+// Image/audio generation is heavier per-request (real inference time, larger
+// payloads) and HF's free Inference API has its own tight rate limits, so
+// this is deliberately stricter than chatLimiter.
+const mediaLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'too many requests, slow down' },
+});
+
+module.exports = { authLimiter, chatLimiter, mediaLimiter };

@@ -16,6 +16,12 @@ services:
         value: cohere/north-mini-code:free
       - key: OPENROUTER_GENERAL_MODEL
         value: openrouter/free
+      - key: HF_API_KEY
+        sync: false
+      - key: HF_IMAGE_MODEL
+        value: stabilityai/stable-diffusion-3-medium-diffusers
+      - key: HF_STT_MODEL
+        value: openai/whisper-large-v3-turbo
     # No persistent disk here: Render's free plan doesn't support one, so
     # the SQLite file lives on ephemeral storage and resets on every
     # redeploy/restart (accounts, sessions, chat logs all wiped). Add a

@@ -10,7 +10,19 @@ OmniAgent is a single-identity chat product that routes user requests to whichev
 
 **Reintroduced cloud fallback for hosted deployment (decision recorded 2026-09-15):** the user decided to deploy OmniAgent as a real website (target: Render), where no Ollama server is available. Rather than a second cloud-provider removal-and-reinstatement cycle, the design now treats local and cloud as two tiers of the *same* fallback chain: local Ollama adapters (`ollama-coding`, `ollama-general`) are tried first when configured, and two new OpenRouter free-tier adapters (`openrouter-coding`, `openrouter-general`, via `server/cloud-adapter.js`) sit after them in `DEFAULT_ADAPTERS`. A host with no `LOCAL_*_MODEL` set (e.g. Render) simply has those adapters excluded from `isConfigured()` filtering, and OpenRouter picks up every category automatically — no environment-specific code path. This preserves the "no paid-provider dependency" spirit (OpenRouter's free-tier models need no billing) while making the app deployable anywhere.
 
-This spec covers **core only**: chat, auth, routing/fallback across text backends, and logging. Deferred to later specs: image generation, speech-to-text, and finance/news scraping (translation was folded into core routing as a category, see below).
+This spec covers **core only**: chat, auth, routing/fallback across text backends, and logging. Deferred to later specs: finance/news scraping. Translation was folded into core routing as a category; image generation and speech-to-text were added (2026-09-15) as separate non-chat routes rather than router categories, since their input/output isn't text-in/text-out — see "Media capabilities" below.
+
+## Media capabilities (image generation, STT, TTS)
+
+**Decision recorded 2026-09-15.** Once the app needed to run as a deployed website (not just locally), image generation and speech-to-text needed a free *hosted* backend — local-only tools (e.g. a local Ollama vision model, Piper TTS) don't help a visitor hitting a Render deployment. Hugging Face's free Inference API (the `hf-inference` provider specifically, via `router.huggingface.co/hf-inference`) covers both:
+
+- **`POST /generate-image`** (`server/media.js`, `server/adapters/hf-image.js`) — text-to-image, default model `stabilityai/stable-diffusion-3-medium-diffusers`. Verified live end-to-end through the actual UI.
+- **`POST /transcribe`** (multipart audio upload, `server/adapters/hf-whisper.js`) — `openai/whisper-large-v3-turbo`. Verified live with a real generated WAV file, transcribed correctly.
+- **Text-to-speech has no backend route at all.** Checked live against Hugging Face's own model-listing API (`/api/models?pipeline_tag=text-to-speech&inference_provider=hf-inference`) — it returned an empty list. There is currently no free TTS model on `hf-inference`. Rather than reach for a paid provider, TTS uses the browser's built-in Web Speech Synthesis API (`client/src/speech.js`) instead: free, zero API key, zero server cost, works on any host. This is a better fit than a backend call would have been, not a workaround.
+
+**A real endpoint migration was hit and fixed during this work**: `api-inference.huggingface.co` (the URL every "how to use HF Inference API" guide references) is fully decommissioned — the hostname doesn't even resolve via DNS anymore. All three adapters use `router.huggingface.co/hf-inference/models/<model>` instead. Not every model that used to work on the old host works under the new `hf-inference` provider (`black-forest-labs/FLUX.1-schnell` returns 410 — it's been moved to a different, paid-only provider) — model choices here were verified live against the real API, not carried over from search results or older documentation, which are stale.
+
+These are separate authenticated routes rather than router categories/adapters, because the router's adapter contract (`send(prompt) -> string`) assumes text in, text out; image bytes in/out and audio bytes in/text out don't fit that shape without a larger interface change that wasn't judged worth it for two routes.
 
 ## Scope (this spec)
 

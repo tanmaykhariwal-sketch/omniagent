@@ -1,5 +1,6 @@
 import { useRef, useState } from 'react';
-import { sendChat, logout } from './api.js';
+import { sendChat, generateImage, transcribeAudio, logout } from './api.js';
+import { speak, stopSpeaking, isSpeechSynthesisSupported, AudioRecorder, isRecordingSupported } from './speech.js';
 
 const QUICK_ACTIONS = [
   { label: 'Summarize', key: '1', prefill: 'Summarize the following:\n\n' },
@@ -18,13 +19,38 @@ function Ticks({ stage }) {
   );
 }
 
+function MicIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+      <rect x="5.5" y="1.5" width="5" height="8" rx="2.5" />
+      <path d="M3 8a5 5 0 0 0 10 0" />
+      <path d="M8 13v1.5" />
+    </svg>
+  );
+}
+
+function SpeakerIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2 6.5h2.5L8 3.5v9L4.5 9.5H2z" />
+      <path d="M10.5 5.5a3.2 3.2 0 0 1 0 5" />
+      <path d="M12.3 3.8a5.8 5.8 0 0 1 0 8.4" />
+    </svg>
+  );
+}
+
 export default function ChatPage({ onLoggedOut }) {
   const [input, setInput] = useState('');
   const [rows, setRows] = useState([]);
   const [sending, setSending] = useState(false);
+  const [imageMode, setImageMode] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
   const textareaRef = useRef(null);
+  const recorderRef = useRef(null);
 
   function prefill(text) {
+    setImageMode(false);
     setInput(text);
     textareaRef.current?.focus();
   }
@@ -37,6 +63,22 @@ export default function ChatPage({ onLoggedOut }) {
     const id = crypto.randomUUID();
     setInput('');
     setSending(true);
+
+    if (imageMode) {
+      setRows((r) => [...r, { id, role: 'you', text: prompt }, { id: `${id}-status`, role: 'generating' }]);
+      try {
+        const { image } = await generateImage(prompt);
+        setRows((r) => r.map((row) => (row.id === `${id}-status` ? { id: row.id, role: 'image', src: image } : row)));
+      } catch (err) {
+        setRows((r) =>
+          r.map((row) => (row.id === `${id}-status` ? { id: row.id, role: 'error', text: err.message } : row))
+        );
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
+
     setRows((r) => [...r, { id, role: 'you', text: prompt }, { id: `${id}-status`, role: 'status', stage: 1 }]);
 
     setTimeout(() => {
@@ -57,7 +99,34 @@ export default function ChatPage({ onLoggedOut }) {
     }
   }
 
+  async function toggleRecording() {
+    if (recording) {
+      setRecording(false);
+      setTranscribing(true);
+      try {
+        const blob = await recorderRef.current.stop();
+        const { text } = await transcribeAudio(blob);
+        setInput((prev) => (prev ? `${prev} ${text}` : text));
+        textareaRef.current?.focus();
+      } catch (err) {
+        setRows((r) => [...r, { id: crypto.randomUUID(), role: 'error', text: err.message }]);
+      } finally {
+        setTranscribing(false);
+      }
+      return;
+    }
+
+    try {
+      recorderRef.current = new AudioRecorder();
+      await recorderRef.current.start();
+      setRecording(true);
+    } catch (err) {
+      setRows((r) => [...r, { id: crypto.randomUUID(), role: 'error', text: 'Microphone access was denied or is unavailable.' }]);
+    }
+  }
+
   async function handleLogout() {
+    stopSpeaking();
     await logout();
     onLoggedOut();
   }
@@ -78,7 +147,7 @@ export default function ChatPage({ onLoggedOut }) {
             <textarea
               ref={textareaRef}
               rows={1}
-              placeholder="Ask OmniAgent…"
+              placeholder={imageMode ? 'Describe an image to generate…' : 'Ask OmniAgent…'}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
@@ -88,8 +157,27 @@ export default function ChatPage({ onLoggedOut }) {
                 }
               }}
             />
+            {isRecordingSupported() && (
+              <button
+                type="button"
+                className={`mic-btn ${recording ? 'active' : ''}`}
+                onClick={toggleRecording}
+                disabled={transcribing}
+                title={recording ? 'Stop recording' : 'Record a voice message'}
+              >
+                <MicIcon />
+              </button>
+            )}
+            <button
+              type="button"
+              className={`mode-btn ${imageMode ? 'active' : ''}`}
+              onClick={() => setImageMode((m) => !m)}
+              title="Toggle image generation"
+            >
+              Image
+            </button>
             <button className="send-btn" type="submit" disabled={sending || !input.trim()}>
-              Send
+              {transcribing ? 'Transcribing…' : 'Send'}
             </button>
           </form>
 
@@ -104,7 +192,7 @@ export default function ChatPage({ onLoggedOut }) {
 
           <div className="log">
             {rows.length === 0 && (
-              <div className="log-empty">Type a message, or pick a quick action above.</div>
+              <div className="log-empty">Type a message, pick a quick action, or record your voice.</div>
             )}
             {rows.map((row) => {
               if (row.role === 'status') {
@@ -117,10 +205,35 @@ export default function ChatPage({ onLoggedOut }) {
                   </div>
                 );
               }
+              if (row.role === 'generating') {
+                return (
+                  <div className="row omni" key={row.id}>
+                    <div className="row-meta">
+                      <span className="row-who">OmniAgent</span>
+                      <span className="generating-label">generating…</span>
+                    </div>
+                  </div>
+                );
+              }
+              if (row.role === 'image') {
+                return (
+                  <div className="row omni" key={row.id}>
+                    <div className="row-meta">
+                      <span className="row-who">OmniAgent</span>
+                    </div>
+                    <img className="row-image" src={row.src} alt="Generated" />
+                  </div>
+                );
+              }
               return (
                 <div className={`row ${row.role}`} key={row.id}>
                   <div className="row-meta">
                     <span className="row-who">{row.role === 'you' ? 'You' : 'OmniAgent'}</span>
+                    {row.role === 'omni' && isSpeechSynthesisSupported() && (
+                      <button className="speak-btn" type="button" onClick={() => speak(row.text)} title="Read aloud">
+                        <SpeakerIcon />
+                      </button>
+                    )}
                   </div>
                   <p className="row-text">{row.text}</p>
                 </div>

@@ -1,6 +1,6 @@
 # OmniAgent
 
-Single-identity chat app: a lead model decides which specialist "subagent(s)" should answer each request (coding, summarization, creative, classification, translation, fast, general), dispatches to them, and — if more than one was needed — synthesizes their answers into one response. Runs on free local Ollama models when available (e.g. your own machine), and automatically falls back to free-tier OpenRouter cloud models when no local model is configured (e.g. deployed to Render). Backend identity is never exposed to the user.
+Single-identity chat app: a lead model decides which specialist "subagent(s)" should answer each request (coding, summarization, creative, classification, translation, fast, general), dispatches to them, and — if more than one was needed — synthesizes their answers into one response. Also does image generation and speech-to-text (free, hosted, no local install required for either), and text-to-speech via the browser's own Web Speech API. Runs on free local Ollama models when available (e.g. your own machine), and automatically falls back to free-tier OpenRouter cloud models when no local model is configured (e.g. deployed to Render). Backend identity is never exposed to the user.
 
 ## Stack
 
@@ -55,9 +55,25 @@ The server refuses to start only if **neither** a local model **nor** `OPENROUTE
 `render.yaml` is set up for a single web service that builds and serves both the API and the React frontend from one Express process:
 
 1. Push this repo to GitHub, then create a new Render Web Service from it (Render will read `render.yaml` automatically).
-2. Set `OPENROUTER_API_KEY` in the Render dashboard (marked `sync: false` in `render.yaml`, so it's not stored in the repo). Leave `LOCAL_CODING_MODEL`/`LOCAL_GENERAL_MODEL` unset — Render has no Ollama server, so OpenRouter handles every category.
+2. Set `OPENROUTER_API_KEY` and `HF_API_KEY` in the Render dashboard (both marked `sync: false` in `render.yaml`, so neither is stored in the repo). Leave `LOCAL_CODING_MODEL`/`LOCAL_GENERAL_MODEL` unset — Render has no Ollama server, so OpenRouter handles every chat category; `HF_API_KEY` powers image generation and speech-to-text the same way whether local or deployed.
 3. **No persistent disk on the free plan**: the SQLite file lives on ephemeral storage and resets (accounts, sessions, chat logs all wiped) on every redeploy or restart. That's fine for a demo; if you need data to survive deploys, add a paid-plan disk or swap `server/db.js` for a hosted DB (e.g. Turso, Supabase).
 4. `npm run build` (run automatically by Render) builds `client/dist`; `server/index.js` serves it directly when that directory exists, so there's no separate frontend deploy or Vite dev server in production.
+
+## Image generation, speech-to-text, and text-to-speech
+
+Three more categories the router doesn't cover (they don't fit the text-prompt-in/text-out shape of chat):
+
+- **Image generation** (`POST /generate-image`) via Hugging Face's free Inference API (`hf-inference` provider). Default model `stabilityai/stable-diffusion-3-medium-diffusers`.
+- **Speech-to-text** (`POST /transcribe`, multipart file upload) via the same free API, `openai/whisper-large-v3-turbo` by default. The mic button in the chat UI records via `MediaRecorder` and posts the clip here.
+- **Text-to-speech** — deliberately **not** a backend route. Hugging Face's free `hf-inference` provider has zero text-to-speech models available (confirmed live against its own model-listing API on 2026-09-15 — an empty list, not a guess). The "Read aloud" button on each response instead uses the browser's built-in Web Speech Synthesis API (`client/src/speech.js`) — free, no key, no server round-trip, works on any deployed host.
+
+Setup: get a free token at [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) with "Inference" access, set `HF_API_KEY` in `.env`. Each feature is independently optional — missing the key just makes that one feature return "temporarily unavailable" rather than breaking anything else.
+
+**Important if you ever change the default models**: `api-inference.huggingface.co` (the old Inference API host) is fully decommissioned — DNS doesn't even resolve anymore. Everything goes through `router.huggingface.co/hf-inference` now, and not every model works under every provider (e.g. `black-forest-labs/FLUX.1-schnell` returns 410 under `hf-inference` — it moved to a different, non-free provider). Verify a model actually works on `hf-inference` before setting it:
+```
+curl -s "https://huggingface.co/api/models?pipeline_tag=text-to-image&inference_provider=hf-inference&limit=10"
+```
+(swap `pipeline_tag` for `automatic-speech-recognition` to check STT models).
 
 ## Hardening notes
 

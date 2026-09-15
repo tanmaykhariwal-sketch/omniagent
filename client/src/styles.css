@@ -276,6 +276,7 @@ button {
 
 .palette-input-row textarea {
   flex: 1;
+  min-width: 0;
   background: transparent;
   border: none;
   color: var(--text);
@@ -316,6 +317,60 @@ button {
   background: var(--border-strong);
   color: var(--text-faint);
   cursor: not-allowed;
+}
+
+.mic-btn,
+.mode-btn {
+  flex-shrink: 0;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-dim);
+  border-radius: 6px;
+  cursor: pointer;
+  transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
+}
+
+.mic-btn {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.mode-btn {
+  padding: 7px 10px;
+  font-size: 12px;
+}
+
+.mic-btn:hover:not(:disabled),
+.mode-btn:hover {
+  border-color: var(--border-strong);
+  color: var(--text);
+}
+
+.mic-btn:disabled {
+  color: var(--text-faint);
+  cursor: not-allowed;
+}
+
+.mic-btn.active {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: var(--danger-soft);
+  animation: mic-pulse 1.4s steps(2, jump-none) infinite;
+}
+
+@keyframes mic-pulse {
+  50% {
+    background: transparent;
+  }
+}
+
+.mode-btn.active {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-soft);
 }
 
 /* fixed "terrain" row — quick actions never move or reorder */
@@ -395,6 +450,28 @@ button {
   margin-bottom: 6px;
 }
 
+.speak-btn {
+  background: none;
+  border: none;
+  color: var(--text-faint);
+  cursor: pointer;
+  padding: 2px;
+  display: inline-flex;
+  align-items: center;
+  transition: color 0.15s ease;
+}
+
+.speak-btn:hover {
+  color: var(--accent);
+}
+
+.row-image {
+  display: block;
+  max-width: 100%;
+  border-radius: 6px;
+  border: 1px solid var(--border);
+}
+
 .row-who {
   font-family: var(--font-mono);
   font-size: 11px;
@@ -439,6 +516,19 @@ button {
 
 .ticks span.lit {
   background: var(--accent);
+}
+
+.generating-label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  animation: generating-blink 1.2s steps(2, jump-none) infinite;
+}
+
+@keyframes generating-blink {
+  50% {
+    opacity: 0.4;
+  }
 }
 
 @media (max-width: 520px) {

@@ -5,7 +5,8 @@ const session = require('express-session');
 const { SqliteSessionStore } = require('./sqlite-session-store');
 const { authRouter } = require('./auth');
 const { chatRouter } = require('./chat');
-const { authLimiter, chatLimiter } = require('./rate-limit');
+const { mediaRouter } = require('./media');
+const { authLimiter, chatLimiter, mediaLimiter } = require('./rate-limit');
 
 const CLIENT_DIST = path.join(__dirname, '..', 'client', 'dist');
 
@@ -31,8 +32,10 @@ function createApp() {
   app.use('/register', authLimiter);
   app.use('/login', authLimiter);
   app.use('/chat', chatLimiter);
+  app.use(['/generate-image', '/transcribe'], mediaLimiter);
   app.use(authRouter);
   app.use(chatRouter);
+  app.use(mediaRouter);
 
   // Single-service deployment: serve the built React app from the same
   // Express process (client/dist, produced by `npm run build` in client/).

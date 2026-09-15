@@ -36,3 +36,22 @@ export function sendChat(prompt) {
     body: JSON.stringify({ prompt }),
   }).then(handle);
 }
+
+export function generateImage(prompt) {
+  return fetch('/generate-image', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ prompt }),
+  }).then(handle);
+}
+
+export function transcribeAudio(blob) {
+  const form = new FormData();
+  form.append('audio', blob, 'clip.webm');
+  return fetch('/transcribe', {
+    method: 'POST',
+    credentials: 'include',
+    body: form,
+  }).then(handle);
+}
