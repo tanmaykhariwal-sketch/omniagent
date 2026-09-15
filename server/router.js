@@ -15,16 +15,21 @@ const openrouterHy3 = require('./adapters/openrouter-hy3');
 // free-tier fallback for when the primary OpenRouter models are rate-limited.
 const DEFAULT_ADAPTERS = [ollamaCoding, ollamaGeneral, openrouterCoding, openrouterGeneral, openrouterHy3];
 
-// Category -> primary specialist. If the primary isn't configured/running,
-// or its call fails, the router falls through the rest of DEFAULT_ADAPTERS.
+// Category -> ordered list of specialist candidates (local first, then the
+// cloud equivalent). The router uses the first NAME in this list that's
+// actually configured -- e.g. on a host with no local model, "coding"
+// resolves to openrouter-coding rather than falling through to whatever
+// adapter happens to be first in DEFAULT_ADAPTERS. If that resolved primary
+// still fails at request time, the router falls through the rest of
+// DEFAULT_ADAPTERS as before.
 const CATEGORY_PRIMARY = {
-  coding: 'ollama-coding',
-  summarization: 'ollama-general',
-  creative: 'ollama-general',
-  classification: 'ollama-general',
-  translation: 'ollama-general',
-  fast: 'ollama-general',
-  general: 'ollama-general',
+  coding: ['ollama-coding', 'openrouter-coding'],
+  summarization: ['ollama-general', 'openrouter-general'],
+  creative: ['ollama-general', 'openrouter-general'],
+  classification: ['ollama-general', 'openrouter-general'],
+  translation: ['ollama-general', 'openrouter-general'],
+  fast: ['ollama-general', 'openrouter-general'],
+  general: ['ollama-general', 'openrouter-general'],
 };
 
 function buildRouter(adapters, options = {}) {
@@ -34,9 +39,11 @@ function buildRouter(adapters, options = {}) {
   const synthesizeFn = options.synthesize || synthesize;
 
   async function answerCategory(prompt, category, configured) {
-    const primaryName = categoryPrimary[category];
-    const primary = configured.find((a) => a.name === primaryName);
-    const rest = configured.filter((a) => a.name !== primaryName);
+    const candidateNames = categoryPrimary[category] || [];
+    const primary = candidateNames
+      .map((name) => configured.find((a) => a.name === name))
+      .find((a) => a);
+    const rest = configured.filter((a) => a !== primary);
     const order = primary ? [primary, ...rest] : rest;
 
     for (const adapter of order) {

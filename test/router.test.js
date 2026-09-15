@@ -13,7 +13,7 @@ function fakeAdapter(name, behavior) {
   };
 }
 
-const categoryPrimary = { coding: 'specialist', general: 'generalist' };
+const categoryPrimary = { coding: ['specialist'], general: ['generalist'] };
 const alwaysGeneral = () => 'general';
 const alwaysCoding = () => 'coding';
 
@@ -91,6 +91,26 @@ test('dispatches to multiple categories and synthesizes a combined answer', asyn
   assert.strictEqual(result.backendUsed, 'specialist+generalist');
   assert.strictEqual(result.category, 'coding+general');
   assert.strictEqual(result.text, 'combined: specialist: fix this bug and explain it simply | generalist: fix this bug and explain it simply');
+});
+
+test('resolves to the second named candidate when the first is unconfigured, not just whatever adapter is listed first', async () => {
+  // Regression test: category primaries are ordered lists (e.g.
+  // ['ollama-general', 'openrouter-general']). When the first candidate
+  // isn't configured, the category must resolve to the *next named*
+  // candidate for that category -- not silently fall through to an
+  // unrelated adapter that just happens to be first in the adapter list.
+  const unconfiguredLocal = { name: 'local-general', isConfigured: () => false, send: async () => { throw new Error('should not be called'); } };
+  const wrongCategoryButFirst = fakeAdapter('cloud-coding', 'ok');
+  const rightCategory = fakeAdapter('cloud-general', 'ok');
+  const router = buildRouter(
+    [wrongCategoryButFirst, rightCategory, unconfiguredLocal],
+    {
+      classify: () => 'general',
+      categoryPrimary: { general: ['local-general', 'cloud-general'] },
+    }
+  );
+  const result = await router.route('translate this');
+  assert.strictEqual(result.backendUsed, 'cloud-general');
 });
 
 test('falls back to the first specialist answer when synthesis fails', async () => {
