@@ -1,10 +1,11 @@
-const VALID_CATEGORIES = ['coding', 'summarization', 'creative', 'classification', 'fast', 'general'];
+const VALID_CATEGORIES = ['coding', 'summarization', 'creative', 'classification', 'translation', 'fast', 'general'];
 
 const LEAD_SYSTEM_PROMPT = `You are a routing coordinator for a multi-specialist AI system with these categories:
 - coding: programming, debugging, or technical code questions
 - summarization: summarizing or analyzing text
 - creative: brainstorming, stories, or creative writing
 - classification: categorizing or labeling data
+- translation: translating text between languages
 - fast: quick, simple factual questions
 - general: anything else
 

@@ -7,6 +7,7 @@ const RULES = [
   { category: 'summarization', pattern: /\bsummarize\b|\bsummary\b|\banalyz(e|is)\b/i },
   { category: 'creative', pattern: /\bbrainstorm\b|\bstory\b|\bpoem\b|\bcreative\b|\bblog post\b/i },
   { category: 'classification', pattern: /\bclassify\b|\bcategoriz(e|ation)\b/i },
+  { category: 'translation', pattern: /\btranslate\b|\btranslation\b|\bin (spanish|french|german|hindi|japanese|chinese|italian|portuguese|russian|arabic|korean)\b/i },
   { category: 'fast', pattern: /\bquick\b|\bshort answer\b/i },
 ];
 

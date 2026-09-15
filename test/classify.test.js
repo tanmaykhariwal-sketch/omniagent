@@ -32,6 +32,12 @@ test('classifies classification prompts', () => {
   assert.strictEqual(classify('classify this list of animals'), 'classification');
 });
 
+test('classifies translation prompts', () => {
+  assert.strictEqual(classify('translate this sentence to spanish'), 'translation');
+  assert.strictEqual(classify('how do you say hello in french'), 'translation');
+  assert.strictEqual(classify('write this in hindi'), 'translation');
+});
+
 test('classifies fast prompts', () => {
   assert.strictEqual(classify('give me a quick answer'), 'fast');
 });

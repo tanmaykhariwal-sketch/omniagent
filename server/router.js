@@ -14,6 +14,7 @@ const CATEGORY_PRIMARY = {
   summarization: 'ollama-general',
   creative: 'ollama-general',
   classification: 'ollama-general',
+  translation: 'ollama-general',
   fast: 'ollama-general',
   general: 'ollama-general',
 };
