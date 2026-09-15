@@ -125,3 +125,9 @@ queries(id INTEGER PK, user_id INTEGER, prompt TEXT, response TEXT, backend_used
 ## Config
 
 - `.env` (gitignored): `PORT`, `SESSION_SECRET`, `OLLAMA_BASE_URL` (defaults to `http://localhost:11434`), `LOCAL_CODING_MODEL`, `LOCAL_GENERAL_MODEL`. No cloud API keys exist. Category-to-backend mapping and fallback order are fixed in code, filtered to whichever local model env vars are actually set.
+
+## Frontend redesign — Command Palette → Standard Chat App
+
+**Decision recorded 2026-09-15.** After all backend capabilities above were built and verified, the user rejected the original frontend look ("i dont like the interface, make it a general interface") — a dark, keyboard-first "Command Palette" world (addressed rows, mono labels, 3-tick status marker). Confirmed direction: a standard chat-app layout matching the ChatGPT/Claude.ai craft bar — message bubbles, a plain header instead of a floating palette shell, neutral theme, light by default with a dark toggle.
+
+Rebuilt via the `impeccable` skill's new-work/redesign flow as a full visual-world replacement, not a tweak: old world's CSS classes (`.palette-shell`, `.palette-topbar`, `.palette`, `.row`, `.ticks`, `.mode-btn`, etc.) removed outright rather than patched. New: `client/src/theme.js` (light/dark persisted to `localStorage`, applied pre-mount to avoid theme flash), fully rewritten `client/src/styles.css` and `client/src/ChatPage.jsx`. All existing functionality preserved as-is — login/register, quick-action prefills, mic recording → transcription, image generation mode, finance quote mode, news search mode, per-message read-aloud — only the visual surface changed. See [DESIGN.md](../../../DESIGN.md) for the full design record; verified live in-browser (light/dark themes, real chat exchange, mobile viewport) and via the `detect.mjs` mechanical linter (clean).

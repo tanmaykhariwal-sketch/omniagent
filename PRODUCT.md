@@ -28,13 +28,15 @@ Single running conversation per session (no multi-conversation history in this p
 
 ## Capabilities and Constraints
 
-- Confirmed: chat with unified responses, quick-action prompt presets (summarize / explain code / draft email), email+password auth.
-- Explicitly out of scope for this phase: image generation, speech-to-text, translation, live finance/news data, OAuth/SSO, password reset, multi-conversation history, streaming responses.
+- Confirmed: chat with unified responses (7 text categories: coding, summarization, creative, classification, translation, fast, general), quick-action prompt presets (summarize / explain code / draft email), email+password auth, image generation, voice input (record → transcribe) and per-message read-aloud (TTS), live stock/finance quotes, live news search.
+- Explicitly out of scope for this phase: OAuth/SSO, password reset, multi-conversation history, streaming responses.
 - Hard constraint: no backend AI name, logo, or routing detail is ever shown to the user anywhere in the UI.
 
 ## Brand Commitments
 
 Name: "OmniAgent". No other backend AI names/icons/branding may appear anywhere in the UI — this is a binding identity constraint, not just a copy preference.
+
+Visual identity (2026-09-15): standard chat-app world (message bubbles, header, light-default/dark-toggle theme), craft bar ChatGPT + Claude.ai. Chosen explicitly by the user over the original Command Palette world — see [DESIGN.md](DESIGN.md). Future UI work should extend this world, not the discarded one.
 
 ## Evidence on Hand
 

@@ -1,6 +1,7 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { sendChat, generateImage, transcribeAudio, getQuote, searchNews, logout } from './api.js';
 import { speak, stopSpeaking, isSpeechSynthesisSupported, AudioRecorder, isRecordingSupported } from './speech.js';
+import { initTheme, applyTheme } from './theme.js';
 
 const QUICK_ACTIONS = [
   { label: 'Summarize', key: '1', prefill: 'Summarize the following:\n\n' },
@@ -15,29 +16,37 @@ const MODE_ACTIONS = [
 ];
 
 const MODE_PLACEHOLDERS = {
-  chat: 'Ask OmniAgent…',
+  chat: 'Message OmniAgent…',
   image: 'Describe an image to generate…',
   finance: 'Enter a stock symbol, e.g. AAPL…',
   news: 'Search a news topic…',
 };
 
-function Ticks({ stage }) {
-  // stage: 1 = sent, 2 = routed, 3 = answered
+function TypingDots() {
   return (
-    <span className="ticks" aria-label={`status: ${stage === 1 ? 'sent' : stage === 2 ? 'routed' : 'answered'}`}>
-      <span className={stage >= 1 ? 'lit' : ''} />
-      <span className={stage >= 2 ? 'lit' : ''} />
-      <span className={stage >= 3 ? 'lit' : ''} />
+    <span className="typing-dots" aria-label="OmniAgent is responding">
+      <span />
+      <span />
+      <span />
     </span>
   );
 }
 
 function MicIcon() {
   return (
-    <svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+    <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
       <rect x="5.5" y="1.5" width="5" height="8" rx="2.5" />
       <path d="M3 8a5 5 0 0 0 10 0" />
       <path d="M8 13v1.5" />
+    </svg>
+  );
+}
+
+function SendIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 13V3" />
+      <path d="M3.5 7.5 8 3l4.5 4.5" />
     </svg>
   );
 }
@@ -48,6 +57,23 @@ function SpeakerIcon() {
       <path d="M2 6.5h2.5L8 3.5v9L4.5 9.5H2z" />
       <path d="M10.5 5.5a3.2 3.2 0 0 1 0 5" />
       <path d="M12.3 3.8a5.8 5.8 0 0 1 0 8.4" />
+    </svg>
+  );
+}
+
+function SunIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+      <circle cx="8" cy="8" r="3" />
+      <path d="M8 1.5v1.5M8 13v1.5M2.6 2.6l1 1M12.4 12.4l1 1M1.5 8h1.5M13 8h1.5M2.6 13.4l1-1M12.4 3.6l1-1" />
+    </svg>
+  );
+}
+
+function MoonIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="15" height="15" fill="currentColor">
+      <path d="M13.5 9.5A5.75 5.75 0 0 1 6.5 2.5a.5.5 0 0 0-.7-.55A6.25 6.25 0 1 0 14.05 10.2a.5.5 0 0 0-.55-.7z" />
     </svg>
   );
 }
@@ -76,7 +102,7 @@ function QuoteCard({ quote }) {
 }
 
 function NewsList({ headlines }) {
-  if (headlines.length === 0) return <p className="row-text">No headlines found.</p>;
+  if (headlines.length === 0) return <p className="message-text">No headlines found.</p>;
   return (
     <ul className="news-list">
       {headlines.map((h, i) => (
@@ -98,8 +124,24 @@ export default function ChatPage({ onLoggedOut }) {
   const [mode, setMode] = useState('chat');
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
+  const [theme, setTheme] = useState('light');
   const textareaRef = useRef(null);
   const recorderRef = useRef(null);
+  const chatEndRef = useRef(null);
+
+  useEffect(() => {
+    setTheme(initTheme());
+  }, []);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
+  }, [rows]);
+
+  function toggleTheme() {
+    const next = theme === 'light' ? 'dark' : 'light';
+    setTheme(next);
+    applyTheme(next);
+  }
 
   function prefill(text) {
     setMode('chat');
@@ -166,11 +208,7 @@ export default function ChatPage({ onLoggedOut }) {
       return;
     }
 
-    setRows((r) => [...r, { id, role: 'you', text: prompt }, { id: `${id}-status`, role: 'status', stage: 1 }]);
-
-    setTimeout(() => {
-      setRows((r) => r.map((row) => (row.id === `${id}-status` ? { ...row, stage: 2 } : row)));
-    }, 220);
+    setRows((r) => [...r, { id, role: 'you', text: prompt }, { id: `${id}-status`, role: 'typing' }]);
 
     try {
       const { response } = await sendChat(prompt);
@@ -219,18 +257,124 @@ export default function ChatPage({ onLoggedOut }) {
   }
 
   return (
-    <div className="screen">
-      <div className="palette-shell">
-        <div className="palette-topbar">
-          <p className="wordmark">OmniAgent</p>
+    <div className="app-shell">
+      <header className="app-header">
+        <p className="wordmark">OmniAgent</p>
+        <div className="header-actions">
+          <button className="theme-toggle" onClick={toggleTheme} title={theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}>
+            {theme === 'light' ? <MoonIcon /> : <SunIcon />}
+          </button>
           <button className="icon-btn" onClick={handleLogout}>
             Sign out
           </button>
         </div>
+      </header>
 
-        <div className="palette">
-          <form className="palette-input-row" onSubmit={submit}>
-            <span className="prompt-caret">›</span>
+      <main className="chat-main">
+        <div className="chat-column">
+          {rows.length === 0 && (
+            <div className="chat-empty">
+              <p className="chat-empty-title">How can I help?</p>
+              <p className="chat-empty-sub">Type a message, pick a quick action below, or record your voice.</p>
+            </div>
+          )}
+          {rows.map((row) => {
+            if (row.role === 'typing') {
+              return (
+                <div className="message omni" key={row.id}>
+                  <div className="message-bubble">
+                    <div className="message-label">
+                      <span className="message-label-text">OmniAgent</span>
+                    </div>
+                    <TypingDots />
+                  </div>
+                </div>
+              );
+            }
+            if (row.role === 'generating') {
+              return (
+                <div className="message omni" key={row.id}>
+                  <div className="message-bubble">
+                    <div className="message-label">
+                      <span className="message-label-text">OmniAgent</span>
+                      <span className="generating-label">generating…</span>
+                    </div>
+                  </div>
+                </div>
+              );
+            }
+            if (row.role === 'image') {
+              return (
+                <div className="message omni" key={row.id}>
+                  <div className="message-bubble">
+                    <img className="row-image" src={row.src} alt="Generated" />
+                  </div>
+                </div>
+              );
+            }
+            if (row.role === 'quote') {
+              return (
+                <div className="message omni" key={row.id}>
+                  <div className="message-bubble">
+                    <QuoteCard quote={row.quote} />
+                  </div>
+                </div>
+              );
+            }
+            if (row.role === 'news') {
+              return (
+                <div className="message omni" key={row.id}>
+                  <div className="message-bubble">
+                    <NewsList headlines={row.headlines} />
+                  </div>
+                </div>
+              );
+            }
+            return (
+              <div className={`message ${row.role}`} key={row.id}>
+                <div className="message-bubble">
+                  {row.role === 'omni' && (
+                    <div className="message-label">
+                      <span className="message-label-text">OmniAgent</span>
+                      {isSpeechSynthesisSupported() && (
+                        <button className="speak-btn" type="button" onClick={() => speak(row.text)} title="Read aloud">
+                          <SpeakerIcon />
+                        </button>
+                      )}
+                    </div>
+                  )}
+                  <p className="message-text">{row.text}</p>
+                </div>
+              </div>
+            );
+          })}
+          <div ref={chatEndRef} />
+        </div>
+      </main>
+
+      <div className="composer-wrap">
+        <div className="composer-column">
+          <div className="chip-row">
+            {QUICK_ACTIONS.map((qa) => (
+              <button key={qa.label} className="chip" type="button" onClick={() => prefill(qa.prefill)}>
+                {qa.label}
+                <kbd>⌥{qa.key}</kbd>
+              </button>
+            ))}
+            <span className="chip-row-divider" />
+            {MODE_ACTIONS.map((ma) => (
+              <button
+                key={ma.mode}
+                className={`chip mode-chip ${mode === ma.mode ? 'active' : ''}`}
+                type="button"
+                onClick={() => toggleMode(ma.mode)}
+              >
+                {ma.label}
+              </button>
+            ))}
+          </div>
+
+          <form className="composer" onSubmit={submit}>
             <textarea
               ref={textareaRef}
               rows={1}
@@ -255,101 +399,10 @@ export default function ChatPage({ onLoggedOut }) {
                 <MicIcon />
               </button>
             )}
-            <button className="send-btn" type="submit" disabled={sending || !input.trim()}>
-              {transcribing ? 'Transcribing…' : 'Send'}
+            <button className="send-btn" type="submit" disabled={sending || !input.trim()} title={transcribing ? 'Transcribing…' : 'Send'}>
+              <SendIcon />
             </button>
           </form>
-
-          <div className="quick-row">
-            {QUICK_ACTIONS.map((qa) => (
-              <button key={qa.label} className="chip" type="button" onClick={() => prefill(qa.prefill)}>
-                {qa.label}
-                <kbd>⌥{qa.key}</kbd>
-              </button>
-            ))}
-            <span className="quick-row-divider" />
-            {MODE_ACTIONS.map((ma) => (
-              <button
-                key={ma.mode}
-                className={`chip mode-chip ${mode === ma.mode ? 'active' : ''}`}
-                type="button"
-                onClick={() => toggleMode(ma.mode)}
-              >
-                {ma.label}
-              </button>
-            ))}
-          </div>
-
-          <div className="log">
-            {rows.length === 0 && (
-              <div className="log-empty">Type a message, pick a quick action, or record your voice.</div>
-            )}
-            {rows.map((row) => {
-              if (row.role === 'status') {
-                return (
-                  <div className="row omni" key={row.id}>
-                    <div className="row-meta">
-                      <span className="row-who">OmniAgent</span>
-                      <Ticks stage={row.stage} />
-                    </div>
-                  </div>
-                );
-              }
-              if (row.role === 'generating') {
-                return (
-                  <div className="row omni" key={row.id}>
-                    <div className="row-meta">
-                      <span className="row-who">OmniAgent</span>
-                      <span className="generating-label">generating…</span>
-                    </div>
-                  </div>
-                );
-              }
-              if (row.role === 'image') {
-                return (
-                  <div className="row omni" key={row.id}>
-                    <div className="row-meta">
-                      <span className="row-who">OmniAgent</span>
-                    </div>
-                    <img className="row-image" src={row.src} alt="Generated" />
-                  </div>
-                );
-              }
-              if (row.role === 'quote') {
-                return (
-                  <div className="row omni" key={row.id}>
-                    <div className="row-meta">
-                      <span className="row-who">OmniAgent</span>
-                    </div>
-                    <QuoteCard quote={row.quote} />
-                  </div>
-                );
-              }
-              if (row.role === 'news') {
-                return (
-                  <div className="row omni" key={row.id}>
-                    <div className="row-meta">
-                      <span className="row-who">OmniAgent</span>
-                    </div>
-                    <NewsList headlines={row.headlines} />
-                  </div>
-                );
-              }
-              return (
-                <div className={`row ${row.role}`} key={row.id}>
-                  <div className="row-meta">
-                    <span className="row-who">{row.role === 'you' ? 'You' : 'OmniAgent'}</span>
-                    {row.role === 'omni' && isSpeechSynthesisSupported() && (
-                      <button className="speak-btn" type="button" onClick={() => speak(row.text)} title="Read aloud">
-                        <SpeakerIcon />
-                      </button>
-                    )}
-                  </div>
-                  <p className="row-text">{row.text}</p>
-                </div>
-              );
-            })}
-          </div>
         </div>
       </div>
     </div>
