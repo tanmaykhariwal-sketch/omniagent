@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { sendChat, generateImage, transcribeAudio, logout } from './api.js';
+import { sendChat, generateImage, transcribeAudio, getQuote, searchNews, logout } from './api.js';
 import { speak, stopSpeaking, isSpeechSynthesisSupported, AudioRecorder, isRecordingSupported } from './speech.js';
 
 const QUICK_ACTIONS = [
@@ -7,6 +7,19 @@ const QUICK_ACTIONS = [
   { label: 'Explain code', key: '2', prefill: 'Explain what this code does:\n\n' },
   { label: 'Draft email', key: '3', prefill: 'Draft a professional email about:\n\n' },
 ];
+
+const MODE_ACTIONS = [
+  { mode: 'image', label: 'Image' },
+  { mode: 'finance', label: 'Finance' },
+  { mode: 'news', label: 'News' },
+];
+
+const MODE_PLACEHOLDERS = {
+  chat: 'Ask OmniAgent…',
+  image: 'Describe an image to generate…',
+  finance: 'Enter a stock symbol, e.g. AAPL…',
+  news: 'Search a news topic…',
+};
 
 function Ticks({ stage }) {
   // stage: 1 = sent, 2 = routed, 3 = answered
@@ -39,19 +52,63 @@ function SpeakerIcon() {
   );
 }
 
+function QuoteCard({ quote }) {
+  const up = typeof quote.change === 'number' && quote.change >= 0;
+  const changeText =
+    typeof quote.change === 'number' && typeof quote.changePercent === 'number'
+      ? `${up ? '+' : ''}${quote.change.toFixed(2)} (${up ? '+' : ''}${quote.changePercent.toFixed(2)}%)`
+      : null;
+  return (
+    <div className="quote-card">
+      <div className="quote-head">
+        <span className="quote-symbol">{quote.symbol}</span>
+        <span className="quote-name">{quote.name}</span>
+      </div>
+      <div className="quote-price-row">
+        <span className="quote-price">
+          {quote.price.toFixed(2)} {quote.currency}
+        </span>
+        {changeText && <span className={`quote-change ${up ? 'up' : 'down'}`}>{changeText}</span>}
+      </div>
+      {quote.exchange && <div className="quote-exchange">{quote.exchange}</div>}
+    </div>
+  );
+}
+
+function NewsList({ headlines }) {
+  if (headlines.length === 0) return <p className="row-text">No headlines found.</p>;
+  return (
+    <ul className="news-list">
+      {headlines.map((h, i) => (
+        <li key={i} className="news-item">
+          <a href={h.link} target="_blank" rel="noreferrer">
+            {h.headline}
+          </a>
+          {h.source && <span className="news-source">{h.source}</span>}
+        </li>
+      ))}
+    </ul>
+  );
+}
+
 export default function ChatPage({ onLoggedOut }) {
   const [input, setInput] = useState('');
   const [rows, setRows] = useState([]);
   const [sending, setSending] = useState(false);
-  const [imageMode, setImageMode] = useState(false);
+  const [mode, setMode] = useState('chat');
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const textareaRef = useRef(null);
   const recorderRef = useRef(null);
 
   function prefill(text) {
-    setImageMode(false);
+    setMode('chat');
     setInput(text);
+    textareaRef.current?.focus();
+  }
+
+  function toggleMode(target) {
+    setMode((m) => (m === target ? 'chat' : target));
     textareaRef.current?.focus();
   }
 
@@ -64,11 +121,41 @@ export default function ChatPage({ onLoggedOut }) {
     setInput('');
     setSending(true);
 
-    if (imageMode) {
+    if (mode === 'image') {
       setRows((r) => [...r, { id, role: 'you', text: prompt }, { id: `${id}-status`, role: 'generating' }]);
       try {
         const { image } = await generateImage(prompt);
         setRows((r) => r.map((row) => (row.id === `${id}-status` ? { id: row.id, role: 'image', src: image } : row)));
+      } catch (err) {
+        setRows((r) =>
+          r.map((row) => (row.id === `${id}-status` ? { id: row.id, role: 'error', text: err.message } : row))
+        );
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
+
+    if (mode === 'finance') {
+      setRows((r) => [...r, { id, role: 'you', text: prompt }, { id: `${id}-status`, role: 'generating' }]);
+      try {
+        const { quote } = await getQuote(prompt);
+        setRows((r) => r.map((row) => (row.id === `${id}-status` ? { id: row.id, role: 'quote', quote } : row)));
+      } catch (err) {
+        setRows((r) =>
+          r.map((row) => (row.id === `${id}-status` ? { id: row.id, role: 'error', text: err.message } : row))
+        );
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
+
+    if (mode === 'news') {
+      setRows((r) => [...r, { id, role: 'you', text: prompt }, { id: `${id}-status`, role: 'generating' }]);
+      try {
+        const { headlines } = await searchNews(prompt);
+        setRows((r) => r.map((row) => (row.id === `${id}-status` ? { id: row.id, role: 'news', headlines } : row)));
       } catch (err) {
         setRows((r) =>
           r.map((row) => (row.id === `${id}-status` ? { id: row.id, role: 'error', text: err.message } : row))
@@ -147,7 +234,7 @@ export default function ChatPage({ onLoggedOut }) {
             <textarea
               ref={textareaRef}
               rows={1}
-              placeholder={imageMode ? 'Describe an image to generate…' : 'Ask OmniAgent…'}
+              placeholder={MODE_PLACEHOLDERS[mode]}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
@@ -168,14 +255,6 @@ export default function ChatPage({ onLoggedOut }) {
                 <MicIcon />
               </button>
             )}
-            <button
-              type="button"
-              className={`mode-btn ${imageMode ? 'active' : ''}`}
-              onClick={() => setImageMode((m) => !m)}
-              title="Toggle image generation"
-            >
-              Image
-            </button>
             <button className="send-btn" type="submit" disabled={sending || !input.trim()}>
               {transcribing ? 'Transcribing…' : 'Send'}
             </button>
@@ -186,6 +265,17 @@ export default function ChatPage({ onLoggedOut }) {
               <button key={qa.label} className="chip" type="button" onClick={() => prefill(qa.prefill)}>
                 {qa.label}
                 <kbd>⌥{qa.key}</kbd>
+              </button>
+            ))}
+            <span className="quick-row-divider" />
+            {MODE_ACTIONS.map((ma) => (
+              <button
+                key={ma.mode}
+                className={`chip mode-chip ${mode === ma.mode ? 'active' : ''}`}
+                type="button"
+                onClick={() => toggleMode(ma.mode)}
+              >
+                {ma.label}
               </button>
             ))}
           </div>
@@ -222,6 +312,26 @@ export default function ChatPage({ onLoggedOut }) {
                       <span className="row-who">OmniAgent</span>
                     </div>
                     <img className="row-image" src={row.src} alt="Generated" />
+                  </div>
+                );
+              }
+              if (row.role === 'quote') {
+                return (
+                  <div className="row omni" key={row.id}>
+                    <div className="row-meta">
+                      <span className="row-who">OmniAgent</span>
+                    </div>
+                    <QuoteCard quote={row.quote} />
+                  </div>
+                );
+              }
+              if (row.role === 'news') {
+                return (
+                  <div className="row omni" key={row.id}>
+                    <div className="row-meta">
+                      <span className="row-who">OmniAgent</span>
+                    </div>
+                    <NewsList headlines={row.headlines} />
                   </div>
                 );
               }

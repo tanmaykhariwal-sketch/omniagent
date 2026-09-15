@@ -11,6 +11,8 @@ export default defineConfig({
       '/chat': 'http://localhost:3000',
       '/generate-image': 'http://localhost:3000',
       '/transcribe': 'http://localhost:3000',
+      '/finance': 'http://localhost:3000',
+      '/news': 'http://localhost:3000',
     },
   },
 });

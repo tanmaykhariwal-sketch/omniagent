@@ -319,8 +319,7 @@ button {
   cursor: not-allowed;
 }
 
-.mic-btn,
-.mode-btn {
+.mic-btn {
   flex-shrink: 0;
   background: transparent;
   border: 1px solid var(--border);
@@ -328,9 +327,6 @@ button {
   border-radius: 6px;
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
-}
-
-.mic-btn {
   width: 30px;
   height: 30px;
   display: inline-flex;
@@ -338,13 +334,7 @@ button {
   justify-content: center;
 }
 
-.mode-btn {
-  padding: 7px 10px;
-  font-size: 12px;
-}
-
-.mic-btn:hover:not(:disabled),
-.mode-btn:hover {
+.mic-btn:hover:not(:disabled) {
   border-color: var(--border-strong);
   color: var(--text);
 }
@@ -367,10 +357,22 @@ button {
   }
 }
 
-.mode-btn.active {
+.quick-row-divider {
+  flex-shrink: 0;
+  width: 1px;
+  align-self: stretch;
+  background: var(--border);
+  margin: 2px 2px;
+}
+
+.mode-chip.active {
   border-color: var(--accent);
   color: var(--accent);
   background: var(--accent-soft);
+}
+
+.mode-chip.active:hover {
+  border-color: var(--accent);
 }
 
 /* fixed "terrain" row — quick actions never move or reorder */
@@ -470,6 +472,98 @@ button {
   max-width: 100%;
   border-radius: 6px;
   border: 1px solid var(--border);
+}
+
+.quote-card {
+  background: var(--surface-raised);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 12px 14px;
+}
+
+.quote-head {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.quote-symbol {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.quote-name {
+  font-size: 12px;
+  color: var(--text-dim);
+}
+
+.quote-price-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.quote-price {
+  font-size: 20px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.quote-change {
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.quote-change.up {
+  color: #4ade80;
+}
+
+.quote-change.down {
+  color: var(--danger);
+}
+
+.quote-exchange {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+.news-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.news-item {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.news-item a {
+  color: var(--text);
+  font-size: 13px;
+  text-decoration: none;
+  line-height: 1.4;
+}
+
+.news-item a:hover {
+  color: var(--accent);
+  text-decoration: underline;
+}
+
+.news-source {
+  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-faint);
+  white-space: nowrap;
 }
 
 .row-who {

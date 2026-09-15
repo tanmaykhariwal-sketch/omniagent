@@ -6,6 +6,7 @@ const { SqliteSessionStore } = require('./sqlite-session-store');
 const { authRouter } = require('./auth');
 const { chatRouter } = require('./chat');
 const { mediaRouter } = require('./media');
+const { financeNewsRouter } = require('./finance-news');
 const { authLimiter, chatLimiter, mediaLimiter } = require('./rate-limit');
 
 const CLIENT_DIST = path.join(__dirname, '..', 'client', 'dist');
@@ -33,9 +34,11 @@ function createApp() {
   app.use('/login', authLimiter);
   app.use('/chat', chatLimiter);
   app.use(['/generate-image', '/transcribe'], mediaLimiter);
+  app.use(['/finance', '/news'], chatLimiter);
   app.use(authRouter);
   app.use(chatRouter);
   app.use(mediaRouter);
+  app.use(financeNewsRouter);
 
   // Single-service deployment: serve the built React app from the same
   // Express process (client/dist, produced by `npm run build` in client/).

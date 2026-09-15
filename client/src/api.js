@@ -55,3 +55,11 @@ export function transcribeAudio(blob) {
     body: form,
   }).then(handle);
 }
+
+export function getQuote(symbol) {
+  return fetch(`/finance?symbol=${encodeURIComponent(symbol)}`, { credentials: 'include' }).then(handle);
+}
+
+export function searchNews(query) {
+  return fetch(`/news?q=${encodeURIComponent(query)}`, { credentials: 'include' }).then(handle);
+}
