@@ -46,7 +46,7 @@ Used automatically whenever the corresponding local model isn't configured, isn'
 
 1. Get a free API key at [openrouter.ai/keys](https://openrouter.ai/keys) — no billing needed for free-tier models.
 2. Set `OPENROUTER_API_KEY` in `.env`.
-3. `OPENROUTER_CODING_MODEL` and `OPENROUTER_GENERAL_MODEL` default to `qwen/qwen3-coder:free` and `moonshotai/kimi-k2.6:free`. Free models are rate-limited (~20 req/min, 200/day per model) and change over time — check [openrouter.ai/models](https://openrouter.ai/models) (filter by "free") if a default slug stops working.
+3. `OPENROUTER_CODING_MODEL` and `OPENROUTER_GENERAL_MODEL` default to `cohere/north-mini-code:free` and `openrouter/free` (OpenRouter's own auto-router across whatever's currently free — more resilient than pinning one slug). Free-tier availability changes often; verify live with `curl -s https://openrouter.ai/api/v1/models | jq -r '.data[] | select(.pricing.prompt=="0" and .pricing.completion=="0") | .id'` rather than trusting search results or blog posts, which go stale fast.
 
 The server refuses to start only if **neither** a local model **nor** `OPENROUTER_API_KEY` is configured.
 

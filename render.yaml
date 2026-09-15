@@ -13,9 +13,9 @@ services:
       - key: OPENROUTER_API_KEY
         sync: false
       - key: OPENROUTER_CODING_MODEL
-        value: qwen/qwen3-coder:free
+        value: cohere/north-mini-code:free
       - key: OPENROUTER_GENERAL_MODEL
-        value: moonshotai/kimi-k2.6:free
+        value: openrouter/free
     # No persistent disk here: Render's free plan doesn't support one, so
     # the SQLite file lives on ephemeral storage and resets on every
     # redeploy/restart (accounts, sessions, chat logs all wiped). Add a

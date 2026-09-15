@@ -4,13 +4,16 @@ const ollamaCoding = require('./adapters/ollama-coding');
 const ollamaGeneral = require('./adapters/ollama-general');
 const openrouterCoding = require('./adapters/openrouter-coding');
 const openrouterGeneral = require('./adapters/openrouter-general');
+const openrouterHy3 = require('./adapters/openrouter-hy3');
 
 // Local Ollama adapters are tried first when configured (free, instant, no
 // rate limit -- ideal for local dev). OpenRouter's free-tier adapters are
 // listed after them, so on a host with no local model configured (e.g. a
 // Render deployment, which has no Ollama server) they pick up automatically
-// -- same code path, no environment-specific branching.
-const DEFAULT_ADAPTERS = [ollamaCoding, ollamaGeneral, openrouterCoding, openrouterGeneral];
+// -- same code path, no environment-specific branching. openrouter-hy3 is
+// opt-in (OPENROUTER_HY3_MODEL unset by default) and sits last: one more
+// free-tier fallback for when the primary OpenRouter models are rate-limited.
+const DEFAULT_ADAPTERS = [ollamaCoding, ollamaGeneral, openrouterCoding, openrouterGeneral, openrouterHy3];
 
 // Category -> primary specialist. If the primary isn't configured/running,
 // or its call fails, the router falls through the rest of DEFAULT_ADAPTERS.
