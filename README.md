@@ -1,6 +1,6 @@
 # OmniAgent
 
-Single-identity, fully local chat app: a lead model decides which specialist "subagent(s)" should answer each request (coding, summarization, creative, classification, fast, general), dispatches to them, and — if more than one was needed — synthesizes their answers into one response. Runs entirely on free local Ollama models; there is no cloud dependency. Backend identity is never exposed to the user.
+Single-identity chat app: a lead model decides which specialist "subagent(s)" should answer each request (coding, summarization, creative, classification, translation, fast, general), dispatches to them, and — if more than one was needed — synthesizes their answers into one response. Runs on free local Ollama models when available (e.g. your own machine), and automatically falls back to free-tier OpenRouter cloud models when no local model is configured (e.g. deployed to Render). Backend identity is never exposed to the user.
 
 ## Stack
 
@@ -24,9 +24,9 @@ Note: the original plan called for `better-sqlite3`/`bcrypt`/`connect-sqlite3`, 
 
 Every request goes through a **lead dispatch** step (`server/lead.js`) before anything else: the lead model reads the prompt and decides which 1-2 of six categories (coding, summarization, creative, classification, fast, general) should handle it, as a JSON decision. Each category's specialist adapter (the "subagent") then answers independently; if two categories were dispatched, one more call synthesizes both answers into a single final response. If the lead call itself fails, the app falls back to the original keyword classifier (`server/classify.js`) as a safety net, always picking exactly one category.
 
-Every category runs on a free local Ollama model — **there is no cloud backend at all**. If a category's local model isn't configured/running, or every configured local model fails, that request gets the generic "unavailable" error rather than falling back to any cloud API. See `docs/superpowers/specs/2026-09-08-omniagent-core-design.md` ("Multi-agent dispatch") for the full design, and `DESIGN.md` for the UI direction.
+Each category tries a free local Ollama model first (if configured), then falls through to a free-tier OpenRouter model. On a host with no local model at all (e.g. Render), the local adapters are simply excluded and OpenRouter serves every category — same code, no per-environment branching. See `docs/superpowers/specs/2026-09-08-omniagent-core-design.md` ("Multi-agent dispatch") for the full design, and `DESIGN.md` for the UI direction.
 
-This costs more per request than plain single-backend routing (1-4 local model calls instead of 1) — an explicit tradeoff for handling multi-part prompts better, not an oversight. All calls are local, so there's no per-request money cost either way.
+This costs more per request than plain single-backend routing (1-4 model calls instead of 1) — an explicit tradeoff for handling multi-part prompts better, not an oversight.
 
 ## Local models (Ollama)
 
@@ -38,7 +38,26 @@ No API key, no cost, runs entirely on your machine, via [Ollama](https://ollama.
    - `ollama pull qwen2.5:7b` — powers every other category (general, creative, summarization, classification, fast).
 3. Set `LOCAL_CODING_MODEL=qwen2.5-coder:7b` and/or `LOCAL_GENERAL_MODEL=qwen2.5:7b` in `.env` (and `OLLAMA_BASE_URL` if Ollama isn't on the default `http://localhost:11434`).
 
-Either one is optional independently, but with neither set the server refuses to start.
+Either one is optional independently.
+
+## OpenRouter (free-tier cloud fallback / hosted deployments)
+
+Used automatically whenever the corresponding local model isn't configured, isn't running, or its call fails. Required for a hosted deployment (e.g. Render) since there's no Ollama server there.
+
+1. Get a free API key at [openrouter.ai/keys](https://openrouter.ai/keys) — no billing needed for free-tier models.
+2. Set `OPENROUTER_API_KEY` in `.env`.
+3. `OPENROUTER_CODING_MODEL` and `OPENROUTER_GENERAL_MODEL` default to `qwen/qwen3-coder:free` and `moonshotai/kimi-k2.6:free`. Free models are rate-limited (~20 req/min, 200/day per model) and change over time — check [openrouter.ai/models](https://openrouter.ai/models) (filter by "free") if a default slug stops working.
+
+The server refuses to start only if **neither** a local model **nor** `OPENROUTER_API_KEY` is configured.
+
+## Deploying to Render
+
+`render.yaml` is set up for a single web service that builds and serves both the API and the React frontend from one Express process:
+
+1. Push this repo to GitHub, then create a new Render Web Service from it (Render will read `render.yaml` automatically).
+2. Set `OPENROUTER_API_KEY` in the Render dashboard (marked `sync: false` in `render.yaml`, so it's not stored in the repo). Leave `LOCAL_CODING_MODEL`/`LOCAL_GENERAL_MODEL` unset — Render has no Ollama server, so OpenRouter handles every category.
+3. **No persistent disk on the free plan**: the SQLite file lives on ephemeral storage and resets (accounts, sessions, chat logs all wiped) on every redeploy or restart. That's fine for a demo; if you need data to survive deploys, add a paid-plan disk or swap `server/db.js` for a hosted DB (e.g. Turso, Supabase).
+4. `npm run build` (run automatically by Render) builds `client/dist`; `server/index.js` serves it directly when that directory exists, so there's no separate frontend deploy or Vite dev server in production.
 
 ## Hardening notes
 

@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: omniagent
+    runtime: node
+    plan: free
+    buildCommand: npm install && npm run build
+    startCommand: npm start
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: SESSION_SECRET
+        generateValue: true
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: OPENROUTER_CODING_MODEL
+        value: qwen/qwen3-coder:free
+      - key: OPENROUTER_GENERAL_MODEL
+        value: moonshotai/kimi-k2.6:free
+    # No persistent disk here: Render's free plan doesn't support one, so
+    # the SQLite file lives on ephemeral storage and resets on every
+    # redeploy/restart (accounts, sessions, chat logs all wiped). Add a
+    # paid-plan disk block (see Render's docs) if that data needs to survive
+    # deploys, or swap server/db.js for a hosted DB (e.g. Turso, Supabase).

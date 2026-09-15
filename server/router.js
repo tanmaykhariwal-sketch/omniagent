@@ -2,13 +2,18 @@ const { classify } = require('./classify');
 const { decideCategories, synthesize } = require('./lead');
 const ollamaCoding = require('./adapters/ollama-coding');
 const ollamaGeneral = require('./adapters/ollama-general');
+const openrouterCoding = require('./adapters/openrouter-coding');
+const openrouterGeneral = require('./adapters/openrouter-general');
 
-const DEFAULT_ADAPTERS = [ollamaCoding, ollamaGeneral];
+// Local Ollama adapters are tried first when configured (free, instant, no
+// rate limit -- ideal for local dev). OpenRouter's free-tier adapters are
+// listed after them, so on a host with no local model configured (e.g. a
+// Render deployment, which has no Ollama server) they pick up automatically
+// -- same code path, no environment-specific branching.
+const DEFAULT_ADAPTERS = [ollamaCoding, ollamaGeneral, openrouterCoding, openrouterGeneral];
 
-// Local-only: every category is answered by a free local Ollama model.
-// There is no cloud fallback -- if a category's local model isn't
-// configured/running, or every configured local model fails, the request
-// gets the generic "unavailable" error.
+// Category -> primary specialist. If the primary isn't configured/running,
+// or its call fails, the router falls through the rest of DEFAULT_ADAPTERS.
 const CATEGORY_PRIMARY = {
   coding: 'ollama-coding',
   summarization: 'ollama-general',
