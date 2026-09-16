@@ -72,7 +72,11 @@ export default function LoginPage({ onAuthed }) {
           {mode === 'login' ? "Don't have an account? Register" : 'Already have an account? Sign in'}
         </button>
 
-        {error && <p className="form-error">{error}</p>}
+        {error && (
+          <p className="form-error" role="alert">
+            {error}
+          </p>
+        )}
       </form>
     </div>
   );

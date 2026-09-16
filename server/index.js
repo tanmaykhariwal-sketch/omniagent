@@ -45,14 +45,32 @@ function createApp() {
   // In local dev this directory won't exist -- the Vite dev server handles
   // the frontend instead, so this branch is skipped entirely.
   if (require('node:fs').existsSync(CLIENT_DIST)) {
-    app.use(express.static(CLIENT_DIST));
-    app.get('*', (req, res) => res.sendFile(path.join(CLIENT_DIST, 'index.html')));
+    // Vite fingerprints built assets (assets/*.js, *.css) with content
+    // hashes, so they're safe to cache indefinitely; only index.html (the
+    // catch-all below) must always be revalidated.
+    app.use(express.static(CLIENT_DIST, {
+      maxAge: '1y',
+      immutable: true,
+      setHeaders: (res, filePath) => {
+        if (path.basename(filePath) === 'index.html') {
+          res.setHeader('Cache-Control', 'no-cache');
+        }
+      },
+    }));
+    app.get('*', (req, res) => {
+      res.setHeader('Cache-Control', 'no-cache');
+      res.sendFile(path.join(CLIENT_DIST, 'index.html'));
+    });
   }
 
   return app;
 }
 
 if (require.main === module) {
+  if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
+    console.error('SESSION_SECRET is required in production -- refusing to start with the public dev-secret fallback.');
+    process.exit(1);
+  }
   const hasLocalModel = ['LOCAL_CODING_MODEL', 'LOCAL_GENERAL_MODEL'].some((k) => !!process.env[k]);
   const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
   if (!hasLocalModel && !hasOpenRouter) {

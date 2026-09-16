@@ -31,6 +31,16 @@ const MODE_PLACEHOLDERS = {
   news: 'Search a news topic…',
 };
 
+// Caps how much chat history we keep in memory. Without this, a long-running
+// session (especially one with generated images held as base64 data URLs)
+// grows the `rows` array and re-render cost without bound.
+const MAX_ROWS = 200;
+
+function appendRows(rows, ...newRows) {
+  const next = [...rows, ...newRows];
+  return next.length > MAX_ROWS ? next.slice(next.length - MAX_ROWS) : next;
+}
+
 function TypingDots() {
   return (
     <span className="typing-dots" aria-label="OmniAgent is responding">
@@ -101,7 +111,7 @@ function QuoteCard({ quote }) {
       </div>
       <div className="quote-price-row">
         <span className="quote-price">
-          {quote.price.toFixed(2)} {quote.currency}
+          {typeof quote.price === 'number' ? quote.price.toFixed(2) : '—'} {quote.currency}
         </span>
         {changeText && <span className={`quote-change ${up ? 'up' : 'down'}`}>{changeText}</span>}
       </div>
@@ -110,15 +120,27 @@ function QuoteCard({ quote }) {
   );
 }
 
+function isSafeHttpUrl(url) {
+  try {
+    return ['http:', 'https:'].includes(new URL(url).protocol);
+  } catch {
+    return false;
+  }
+}
+
 function NewsList({ headlines }) {
   if (headlines.length === 0) return <p className="message-text">No headlines found.</p>;
   return (
     <ul className="news-list">
-      {headlines.map((h, i) => (
-        <li key={i} className="news-item">
-          <a href={h.link} target="_blank" rel="noreferrer">
-            {h.headline}
-          </a>
+      {headlines.map((h) => (
+        <li key={h.link || h.headline} className="news-item">
+          {isSafeHttpUrl(h.link) ? (
+            <a href={h.link} target="_blank" rel="noreferrer">
+              {h.headline}
+            </a>
+          ) : (
+            <span>{h.headline}</span>
+          )}
           {h.source && <span className="news-source">{h.source}</span>}
         </li>
       ))}
@@ -145,6 +167,12 @@ export default function ChatPage({ onLoggedOut }) {
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth', block: 'end' });
   }, [rows]);
+
+  useEffect(() => {
+    return () => {
+      recorderRef.current?.stop().catch(() => {});
+    };
+  }, []);
 
   function toggleTheme() {
     const next = theme === 'light' ? 'dark' : 'light';
@@ -179,7 +207,7 @@ export default function ChatPage({ onLoggedOut }) {
     setSending(true);
 
     if (mode === 'image') {
-      setRows((r) => [...r, { id, role: 'you', text: prompt }, { id: `${id}-status`, role: 'generating' }]);
+      setRows((r) => appendRows(r, { id, role: 'you', text: prompt }, { id: `${id}-status`, role: 'generating' }));
       try {
         const { image } = await generateImage(prompt);
         setRows((r) => r.map((row) => (row.id === `${id}-status` ? { id: row.id, role: 'image', src: image } : row)));
@@ -194,7 +222,7 @@ export default function ChatPage({ onLoggedOut }) {
     }
 
     if (mode === 'finance') {
-      setRows((r) => [...r, { id, role: 'you', text: prompt }, { id: `${id}-status`, role: 'generating' }]);
+      setRows((r) => appendRows(r, { id, role: 'you', text: prompt }, { id: `${id}-status`, role: 'generating' }));
       try {
         const { quote } = await getQuote(prompt);
         setRows((r) => r.map((row) => (row.id === `${id}-status` ? { id: row.id, role: 'quote', quote } : row)));
@@ -209,7 +237,7 @@ export default function ChatPage({ onLoggedOut }) {
     }
 
     if (mode === 'news') {
-      setRows((r) => [...r, { id, role: 'you', text: prompt }, { id: `${id}-status`, role: 'generating' }]);
+      setRows((r) => appendRows(r, { id, role: 'you', text: prompt }, { id: `${id}-status`, role: 'generating' }));
       try {
         const { headlines } = await searchNews(prompt);
         setRows((r) => r.map((row) => (row.id === `${id}-status` ? { id: row.id, role: 'news', headlines } : row)));
@@ -223,7 +251,7 @@ export default function ChatPage({ onLoggedOut }) {
       return;
     }
 
-    setRows((r) => [...r, { id, role: 'you', text: prompt }, { id: `${id}-status`, role: 'typing' }]);
+    setRows((r) => appendRows(r, { id, role: 'you', text: prompt }, { id: `${id}-status`, role: 'typing' }));
 
     try {
       const { response } = await sendChat(prompt);
@@ -249,7 +277,7 @@ export default function ChatPage({ onLoggedOut }) {
         setInput((prev) => (prev ? `${prev} ${text}` : text));
         textareaRef.current?.focus();
       } catch (err) {
-        setRows((r) => [...r, { id: crypto.randomUUID(), role: 'error', text: err.message }]);
+        setRows((r) => appendRows(r, { id: crypto.randomUUID(), role: 'error', text: err.message }));
       } finally {
         setTranscribing(false);
       }
@@ -261,7 +289,7 @@ export default function ChatPage({ onLoggedOut }) {
       await recorderRef.current.start();
       setRecording(true);
     } catch (err) {
-      setRows((r) => [...r, { id: crypto.randomUUID(), role: 'error', text: 'Microphone access was denied or is unavailable.' }]);
+      setRows((r) => appendRows(r, { id: crypto.randomUUID(), role: 'error', text: 'Microphone access was denied or is unavailable.' }));
     }
   }
 
@@ -276,7 +304,12 @@ export default function ChatPage({ onLoggedOut }) {
       <header className="app-header">
         <p className="wordmark">OmniAgent</p>
         <div className="header-actions">
-          <button className="theme-toggle" onClick={toggleTheme} title={theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}>
+          <button
+            className="theme-toggle"
+            onClick={toggleTheme}
+            title={theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}
+            aria-label={theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}
+          >
             {theme === 'light' ? <MoonIcon /> : <SunIcon />}
           </button>
           <button className="icon-btn" onClick={handleLogout}>
@@ -305,7 +338,7 @@ export default function ChatPage({ onLoggedOut }) {
             if (row.role === 'typing') {
               return (
                 <div className="message omni" key={row.id}>
-                  <div className="message-bubble">
+                  <div className="message-bubble" role="status" aria-live="polite">
                     <div className="message-label">
                       <span className="message-label-text">OmniAgent</span>
                     </div>
@@ -317,7 +350,7 @@ export default function ChatPage({ onLoggedOut }) {
             if (row.role === 'generating') {
               return (
                 <div className="message omni" key={row.id}>
-                  <div className="message-bubble">
+                  <div className="message-bubble" role="status" aria-live="polite">
                     <div className="message-label">
                       <span className="message-label-text">OmniAgent</span>
                       <span className="generating-label">generating…</span>
@@ -355,12 +388,22 @@ export default function ChatPage({ onLoggedOut }) {
             }
             return (
               <div className={`message ${row.role}`} key={row.id}>
-                <div className="message-bubble">
+                <div
+                  className="message-bubble"
+                  role={row.role === 'error' ? 'alert' : undefined}
+                  aria-live={row.role === 'omni' ? 'polite' : undefined}
+                >
                   {row.role === 'omni' && (
                     <div className="message-label">
                       <span className="message-label-text">OmniAgent</span>
                       {isSpeechSynthesisSupported() && (
-                        <button className="speak-btn" type="button" onClick={() => speak(row.text)} title="Read aloud">
+                        <button
+                          className="speak-btn"
+                          type="button"
+                          onClick={() => speak(row.text)}
+                          title="Read aloud"
+                          aria-label="Read message aloud"
+                        >
                           <SpeakerIcon />
                         </button>
                       )}
@@ -418,11 +461,18 @@ export default function ChatPage({ onLoggedOut }) {
                 onClick={toggleRecording}
                 disabled={transcribing}
                 title={recording ? 'Stop recording' : 'Record a voice message'}
+                aria-label={recording ? 'Stop recording' : 'Record a voice message'}
               >
                 <MicIcon />
               </button>
             )}
-            <button className="send-btn" type="submit" disabled={sending || !input.trim()} title={transcribing ? 'Transcribing…' : 'Send'}>
+            <button
+              className="send-btn"
+              type="submit"
+              disabled={sending || !input.trim()}
+              title={transcribing ? 'Transcribing…' : 'Send'}
+              aria-label={transcribing ? 'Transcribing…' : 'Send message'}
+            >
               <SendIcon />
             </button>
           </form>
