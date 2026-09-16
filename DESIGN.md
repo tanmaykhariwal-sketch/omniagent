@@ -40,7 +40,7 @@ Unchanged from the prior world: `system-ui, -apple-system, "Segoe UI", Roboto, s
 
 ## States implemented
 
-Login: default, focus (ring), hover, busy/disabled ("Please wait…"), inline error banner. Chat: empty state (centered "How can I help?"), sending (typing dots / "generating…" label), answered, error (plain red text, same shape as an answer — never a modal), image/quote/news result cards, mic recording (pulsing red mic button) and transcribing states, dark/light theme.
+Login: default, focus (ring), hover, busy/disabled ("Please wait…"), inline error banner. Chat: empty state (centered "How can I help?" plus a 2×3 grid of emoji starter cards — Explain a concept, Debug some code, Draft an email, Generate an image, Check a stock, Today's news — each prefilling the composer and, where relevant, switching mode), sending (typing dots / "generating…" label), answered, error (plain red text, same shape as an answer — never a modal), image/quote/news result cards, mic recording (pulsing red mic button) and transcribing states, dark/light theme.
 
 ## Constraints carried from PRODUCT.md
 

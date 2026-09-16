@@ -15,6 +15,15 @@ const MODE_ACTIONS = [
   { mode: 'news', label: 'News' },
 ];
 
+const STARTER_PROMPTS = [
+  { emoji: '💡', label: 'Explain a concept', mode: 'chat', text: 'Explain quantum computing in simple terms' },
+  { emoji: '🧑‍💻', label: 'Debug some code', mode: 'chat', text: 'Explain what this code does:\n\n' },
+  { emoji: '✍️', label: 'Draft an email', mode: 'chat', text: 'Draft a professional email about:\n\n' },
+  { emoji: '🎨', label: 'Generate an image', mode: 'image', text: 'A cozy cabin in a snowy forest, warm light in the windows' },
+  { emoji: '📈', label: 'Check a stock', mode: 'finance', text: 'AAPL' },
+  { emoji: '📰', label: "Today's news", mode: 'news', text: 'technology' },
+];
+
 const MODE_PLACEHOLDERS = {
   chat: 'Message OmniAgent…',
   image: 'Describe an image to generate…',
@@ -149,6 +158,12 @@ export default function ChatPage({ onLoggedOut }) {
     textareaRef.current?.focus();
   }
 
+  function chooseStarter(starter) {
+    setMode(starter.mode);
+    setInput(starter.text);
+    textareaRef.current?.focus();
+  }
+
   function toggleMode(target) {
     setMode((m) => (m === target ? 'chat' : target));
     textareaRef.current?.focus();
@@ -276,6 +291,14 @@ export default function ChatPage({ onLoggedOut }) {
             <div className="chat-empty">
               <p className="chat-empty-title">How can I help?</p>
               <p className="chat-empty-sub">Type a message, pick a quick action below, or record your voice.</p>
+              <div className="starter-grid">
+                {STARTER_PROMPTS.map((s) => (
+                  <button key={s.label} type="button" className="starter-card" onClick={() => chooseStarter(s)}>
+                    <span className="starter-emoji" aria-hidden="true">{s.emoji}</span>
+                    <span className="starter-label">{s.label}</span>
+                  </button>
+                ))}
+              </div>
             </div>
           )}
           {rows.map((row) => {
