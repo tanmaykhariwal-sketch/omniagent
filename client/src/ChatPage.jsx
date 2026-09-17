@@ -321,9 +321,9 @@ export default function ChatPage() {
     setRows((r) => appendRows(r, { id, role: 'you', text: prompt }, { id: `${id}-status`, role: 'typing' }));
 
     try {
-      const { response } = await sendChat(prompt, persona);
+      const { response, suggestions } = await sendChat(prompt, persona);
       setRows((r) =>
-        r.map((row) => (row.id === `${id}-status` ? { id: row.id, role: 'omni', text: response } : row))
+        r.map((row) => (row.id === `${id}-status` ? { id: row.id, role: 'omni', text: response, suggestions } : row))
       );
     } catch (err) {
       setRows((r) =>
@@ -421,7 +421,7 @@ export default function ChatPage() {
               </div>
             </div>
           )}
-          {rows.map((row) => {
+          {rows.map((row, index) => {
             if (row.role === 'typing') {
               return (
                 <div className="message omni" key={row.id}>
@@ -506,6 +506,15 @@ export default function ChatPage() {
                     </div>
                   )}
                   <p className="message-text">{row.text}</p>
+                  {row.role === 'omni' && row.suggestions?.length > 0 && index === rows.length - 1 && (
+                    <div className="chip-row suggestion-row">
+                      {row.suggestions.map((s, i) => (
+                        <button key={i} className="chip" type="button" onClick={() => prefill(s)}>
+                          {s}
+                        </button>
+                      ))}
+                    </div>
+                  )}
                 </div>
               </div>
             );

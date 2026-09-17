@@ -1,6 +1,7 @@
 const { getDb } = require('./db');
 const ollamaGeneral = require('./adapters/ollama-general');
 const openrouterGeneral = require('./adapters/openrouter-general');
+const { isSafetyClassifierArtifact } = require('./response-sanity');
 
 // Cloud first, same reasoning as router.js: fast when reachable, and a
 // second try locally if it's not.
@@ -22,13 +23,11 @@ function getMemoryContext(userId) {
   return `What you already know about this user from past conversations:\n${rows.map((r) => `- ${r.fact}`).join('\n')}`;
 }
 
-// OpenRouter's free-tier "auto-router" models (e.g. openrouter/free) can
-// land on a safety/moderation model instead of a normal chat model, which
-// ignores the extraction instruction and returns its own fixed-format
-// output (e.g. "User Safety: safe"). Reject anything that looks like that
-// rather than a natural-language sentence.
+// Reject a safety-classifier artifact (see server/response-sanity.js) or
+// anything implausibly long for a single durable fact -- either way, not
+// a natural-language sentence worth storing.
 function looksLikeFact(text) {
-  if (/^(user|response)\s*safety\s*:/im.test(text)) return false;
+  if (isSafetyClassifierArtifact(text)) return false;
   if (text.length > 300) return false;
   return true;
 }

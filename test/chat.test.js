@@ -108,12 +108,16 @@ test('a known persona is folded into the system prompt; an unknown one is ignore
   const TEST_DB_3 = path.join(__dirname, 'test-chat-persona.sqlite');
   process.env.DB_PATH = TEST_DB_3;
 
-  let lastSystemContent = null;
+  // /chat now makes two internal calls per request (the answer, then
+  // follow-up suggestions) -- capture every system prompt seen, not just
+  // the last, since the suggestions call's own prompt would otherwise
+  // overwrite the persona-bearing one from the answer call.
+  const systemContents = [];
   const fakeOllama = http.createServer((req, res) => {
     let body = '';
     req.on('data', (chunk) => (body += chunk));
     req.on('end', () => {
-      lastSystemContent = JSON.parse(body).messages[0].content;
+      systemContents.push(JSON.parse(body).messages[0].content);
       res.setHeader('Content-Type', 'application/json');
       res.end(JSON.stringify({ message: { content: 'ok' } }));
     });
@@ -134,14 +138,15 @@ test('a known persona is folded into the system prompt; an unknown one is ignore
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt: 'hi', persona: 'casual' }),
   });
-  assert.match(lastSystemContent, /casual, friendly tone/);
+  assert.ok(systemContents.some((c) => /casual, friendly tone/.test(c)));
 
+  systemContents.length = 0;
   await fetch(`${base}/chat`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt: 'hi', persona: 'not-a-real-persona' }),
   });
-  assert.doesNotMatch(lastSystemContent, /not-a-real-persona/);
+  assert.ok(systemContents.every((c) => !c.includes('not-a-real-persona')));
 
   server.close();
   fakeOllama.close();

@@ -36,6 +36,20 @@ test('falls through to another configured adapter when primary fails', async () 
   assert.strictEqual(result.backendUsed, 'generalist');
 });
 
+test('falls through to another adapter when primary returns a safety-classifier artifact', async () => {
+  const brokenAutoRouter = {
+    name: 'specialist',
+    isConfigured: () => true,
+    send: async () => 'User Safety: safe\nResponse Safety: safe',
+  };
+  const router = buildRouter(
+    [fakeAdapter('generalist', 'ok'), brokenAutoRouter],
+    { classify: alwaysCoding, categoryPrimary }
+  );
+  const result = await router.route('fix this bug');
+  assert.strictEqual(result.backendUsed, 'generalist');
+});
+
 test('falls through when primary is not configured', async () => {
   const unconfiguredSpecialist = { name: 'specialist', isConfigured: () => false, send: async () => { throw new Error('should not be called'); } };
   const router = buildRouter(

@@ -636,6 +636,13 @@ button {
   overflow-x: auto;
 }
 
+.suggestion-row {
+  margin-top: 10px;
+  padding-bottom: 0;
+  flex-wrap: wrap;
+  overflow-x: visible;
+}
+
 .chip-row-divider {
   flex-shrink: 0;
   width: 1px;

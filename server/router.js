@@ -1,5 +1,6 @@
 const { classify } = require('./classify');
 const { decideCategories, synthesize } = require('./lead');
+const { isSafetyClassifierArtifact } = require('./response-sanity');
 const ollamaCoding = require('./adapters/ollama-coding');
 const ollamaGeneral = require('./adapters/ollama-general');
 const openrouterCoding = require('./adapters/openrouter-coding');
@@ -53,6 +54,15 @@ function buildRouter(adapters, options = {}) {
     for (const adapter of order) {
       try {
         const text = await adapter.send(prompt, memoryContext);
+        // OpenRouter's free auto-router can land on a safety/moderation
+        // model instead of a real one, which ignores the prompt entirely
+        // and returns its own fixed-format output. Treat that the same as
+        // any other adapter failure -- fall through rather than hand the
+        // user a broken answer.
+        if (isSafetyClassifierArtifact(text)) {
+          console.warn(`[router] ${adapter.name} returned a safety-classifier artifact for category "${category}", falling through`);
+          continue;
+        }
         return { category, text, backendUsed: adapter.name };
       } catch (err) {
         console.warn(`[router] ${adapter.name} failed for category "${category}": ${err.message}`);
