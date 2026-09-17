@@ -9,6 +9,12 @@ Newest entries at the top.
 
 ---
 
+## Smart follow-up suggestions, and a live safety-classifier bug fix
+
+**What:** `server/suggestions.js` generates 2-3 short follow-up questions after each chat answer (feature #27), rendered as clickable chips under the latest assistant message; reuses whichever adapter just answered, capped at an 8s non-throwing timeout. Separately, `server/response-sanity.js` detects when OpenRouter's free auto-router (`openrouter/free`) lands on a safety/moderation model instead of a real chat model and returns fixed-format text like `"User Safety: safe\nResponse Safety: safe"` -- previously only caught inline in memory extraction, now centralized and wired into `server/router.js`'s core adapter loop.
+**Why:** Continuing the feature list "biggest to smallest." While live-testing suggestions, a real chat question ("What is the tallest mountain in the world?") came back with the safety-classifier garbage as its actual visible answer -- the same OpenRouter flakiness previously seen only in a background memory-extraction call, now confirmed hitting real user-facing responses. Fixed at the correct layer (the router's adapter-fallthrough loop, not just memory.js) so any category falls through to the next configured adapter instead of showing the user a broken response. A caveman subagent review before committing caught two real issues, both fixed: the suggestions call had no outer timeout of its own (the adapter's internal ~20s timeout is too slow for an optional feature riding on an already-completed answer), and the suggestion chips used the suggestion text itself as a React key, fragile against duplicate strings -- switched to an index key since the array is short-lived and fully replaced each response.
+**Files:** `server/suggestions.js` (new), `server/response-sanity.js` (new), `server/chat.js`, `server/router.js`, `server/memory.js`, `client/src/ChatPage.jsx`, `client/src/styles.css`, `test/suggestions.test.js` (new), `test/response-sanity.test.js` (new), `test/router.test.js`, `test/chat.test.js`.
+
 ## File uploads and custom personas
 
 **What:** Added `POST /analyze-file` (extracts text from PDF via `pdf-parse`, DOCX via `mammoth`, CSV/TXT as plain text, then routes it through the normal chat pipeline) and `server/personas.js` (a small fixed set of tone instructions -- Professional/Casual/Creative/Technical -- selectable as chips, folded into the system prompt via the same `extraContext` mechanism memory uses).
