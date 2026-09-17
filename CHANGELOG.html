@@ -278,6 +278,15 @@
 
     <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
       <div class="card">
+        <div class="card-head"><span class="tag">Feature</span><h2>File uploads and custom personas</h2></div>
+        <div class="field"><span class="field-label">What</span><p>Added <code>POST /analyze-file</code> (extracts text from PDF via <code>pdf-parse</code>, DOCX via <code>mammoth</code>, CSV/TXT as plain text, then routes it through the normal chat pipeline) and <code>server/personas.js</code> (a small fixed set of tone instructions — Professional/Casual/Creative/Technical — selectable as chips).</p></div>
+        <div class="field"><span class="field-label">Why</span><p>Working through a user-supplied feature-parity list against other AI chat apps, taken "biggest to smallest." Reviewed by both a caveman subagent and an ecc security-reviewer subagent before committing. The ecc review caught one real HIGH-severity issue: text extraction ran the full parser before the 8000-char truncation cap ever applied — a DoS reachable by any user. Fixed with a 30-page cap on PDF parsing and a 15s parse timeout. Personas are looked up from a fixed server-side map by id only, so persona selection can't inject arbitrary text into the system prompt.</p></div>
+        <div class="field"><span class="field-label">Files</span><div class="files"><code>server/file-extract.js</code><code>server/files.js</code><code>server/personas.js</code><code>server/chat.js</code><code>server/index.js</code><code>client/src/ChatPage.jsx</code><code>client/src/api.js</code><code>client/vite.config.js</code></div></div>
+      </div>
+    </div>
+
+    <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
+      <div class="card">
         <div class="card-head"><span class="tag">Feature</span><h2>Conversation history</h2></div>
         <div class="field"><span class="field-label">What</span><p>Added <code>GET /history</code>, returning this session's past text-chat exchanges from the <code>queries</code> table (already logged, never read back). <code>ChatPage</code> loads it on mount so a page reload no longer wipes the conversation.</p></div>
         <div class="field"><span class="field-label">Why</span><p>Requested directly ("what about memory??? y r u missing out on points and features?"). Scoped to text chat only — image generation, finance quotes, and news search stay session-only, since silently re-showing a stale stock quote or headline would be misleading. Also fixed a local-dev-only bug: <code>vite.config.js</code>'s proxy list was missing <code>/history</code>, so the request silently hit Vite's own fallback page instead of the backend (production is unaffected).</p></div>

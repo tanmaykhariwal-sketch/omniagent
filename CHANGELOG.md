@@ -9,6 +9,12 @@ Newest entries at the top.
 
 ---
 
+## File uploads and custom personas
+
+**What:** Added `POST /analyze-file` (extracts text from PDF via `pdf-parse`, DOCX via `mammoth`, CSV/TXT as plain text, then routes it through the normal chat pipeline) and `server/personas.js` (a small fixed set of tone instructions -- Professional/Casual/Creative/Technical -- selectable as chips, folded into the system prompt via the same `extraContext` mechanism memory uses).
+**Why:** Working through a user-supplied feature-parity list against other AI chat apps, taken "biggest to smallest." Both were reviewed by a caveman subagent and an ecc security-reviewer subagent before committing, per standing instruction to invoke both. The ecc review caught one real HIGH-severity issue: `extractText()` ran `pdf-parse`/`mammoth` on the *entire* buffer before the 8000-char truncation cap ever applied, so a crafted PDF/DOCX could cause pathological CPU/memory use before truncation ever kicked in -- a DoS reachable by any user (there's no login). Fixed with a 30-page cap on PDF parsing and a 15s timeout wrapping both parsers. Personas are looked up from a fixed server-side map by id only -- the client never sends free-text tone content, so persona selection can't be used to inject arbitrary text into the system prompt (confirmed by the review, and by a regression test asserting an unknown id resolves to `null`, never the raw input).
+**Files:** `server/file-extract.js` (new), `server/files.js` (new), `server/personas.js` (new), `server/chat.js`, `server/index.js`, `client/src/ChatPage.jsx`, `client/src/api.js`, `client/vite.config.js`, `test/file-extract.test.js` (new), `test/files.test.js` (new), `test/personas.test.js` (new), `test/chat.test.js`.
+
 ## Conversation history
 
 **What:** Added `GET /history`, which returns this session's past text-chat
