@@ -1,4 +1,4 @@
-const { fetchWithTimeout } = require('../fetch-timeout');
+const { fetchWithTimeout } = require('../core/fetch-timeout');
 
 const NAME = 'google-news';
 const DEFAULT_BASE_URL = 'https://news.google.com/rss/search';

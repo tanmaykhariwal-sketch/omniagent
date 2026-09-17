@@ -1,4 +1,4 @@
-const { fetchWithTimeout } = require('../fetch-timeout');
+const { fetchWithTimeout } = require('../core/fetch-timeout');
 
 const NAME = 'ollama-vision';
 const BASE_URL_ENV = 'OLLAMA_BASE_URL';

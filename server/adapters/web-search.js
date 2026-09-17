@@ -1,4 +1,4 @@
-const { fetchWithTimeout } = require('../fetch-timeout');
+const { fetchWithTimeout } = require('../core/fetch-timeout');
 
 const NAME = 'web-search';
 const DEFAULT_BASE_URL = 'https://html.duckduckgo.com/html/';

@@ -2,13 +2,13 @@ require('dotenv').config();
 const path = require('node:path');
 const express = require('express');
 const session = require('express-session');
-const { SqliteSessionStore } = require('./sqlite-session-store');
-const { authRouter } = require('./auth');
-const { chatRouter } = require('./chat');
-const { mediaRouter } = require('./media');
-const { filesRouter } = require('./files');
-const { financeNewsRouter } = require('./finance-news');
-const { authLimiter, chatLimiter, mediaLimiter } = require('./rate-limit');
+const { SqliteSessionStore } = require('./core/sqlite-session-store');
+const { authRouter } = require('./routes/auth');
+const { chatRouter } = require('./routes/chat');
+const { mediaRouter } = require('./routes/media');
+const { filesRouter } = require('./routes/files');
+const { financeNewsRouter } = require('./routes/finance-news');
+const { authLimiter, chatLimiter, mediaLimiter } = require('./core/rate-limit');
 
 const CLIENT_DIST = path.join(__dirname, '..', 'client', 'dist');
 

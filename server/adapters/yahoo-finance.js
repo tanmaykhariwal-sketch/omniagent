@@ -1,4 +1,4 @@
-const { fetchWithTimeout } = require('../fetch-timeout');
+const { fetchWithTimeout } = require('../core/fetch-timeout');
 
 const NAME = 'yahoo-finance';
 const DEFAULT_BASE_URL = 'https://query1.finance.yahoo.com/v8/finance/chart';

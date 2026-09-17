@@ -1,4 +1,4 @@
-const { fetchWithTimeout } = require('../fetch-timeout');
+const { fetchWithTimeout } = require('../core/fetch-timeout');
 
 const NAME = 'hf-whisper';
 const DEFAULT_BASE_URL = 'https://router.huggingface.co/hf-inference/models';

@@ -1,4 +1,4 @@
-const { createCloudAdapter } = require('../cloud-adapter');
+const { createCloudAdapter } = require('../routing/cloud-adapter');
 
 module.exports = createCloudAdapter({
   name: 'openrouter-general',

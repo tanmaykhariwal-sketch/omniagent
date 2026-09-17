@@ -1,4 +1,4 @@
-const { createLocalAdapter } = require('../local-adapter');
+const { createLocalAdapter } = require('../routing/local-adapter');
 
 module.exports = createLocalAdapter({
   name: 'ollama-general',
