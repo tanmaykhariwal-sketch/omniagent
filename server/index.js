@@ -32,7 +32,7 @@ function createApp() {
   app.get('/health', (req, res) => res.json({ ok: true, identity: 'OmniAgent' }));
   app.use('/register', authLimiter);
   app.use('/login', authLimiter);
-  app.use('/chat', chatLimiter);
+  app.use(['/chat', '/history'], chatLimiter);
   app.use(['/generate-image', '/transcribe'], mediaLimiter);
   app.use(['/finance', '/news'], chatLimiter);
   app.use(authRouter);

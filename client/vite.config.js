@@ -9,6 +9,7 @@ export default defineConfig({
       '/login': 'http://localhost:3000',
       '/logout': 'http://localhost:3000',
       '/chat': 'http://localhost:3000',
+      '/history': 'http://localhost:3000',
       '/generate-image': 'http://localhost:3000',
       '/transcribe': 'http://localhost:3000',
       '/finance': 'http://localhost:3000',

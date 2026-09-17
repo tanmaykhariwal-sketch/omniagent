@@ -6,6 +6,10 @@ async function handle(res) {
   return res.json();
 }
 
+export function getHistory() {
+  return fetch('/history', { credentials: 'include' }).then(handle);
+}
+
 export function sendChat(prompt) {
   return fetch('/chat', {
     method: 'POST',

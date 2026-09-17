@@ -8,6 +8,16 @@ const chatRouter = express.Router();
 
 const MAX_PROMPT_LENGTH = 4000;
 
+const MAX_HISTORY = 50;
+
+chatRouter.get('/history', requireAuth, (req, res) => {
+  const db = getDb();
+  const rows = db
+    .prepare('SELECT prompt, response, created_at FROM queries WHERE user_id = ? ORDER BY created_at ASC LIMIT ?')
+    .all(req.session.userId, MAX_HISTORY);
+  res.json({ history: rows });
+});
+
 chatRouter.post('/chat', requireAuth, async (req, res) => {
   const raw = req.body || {};
   const prompt = typeof raw.prompt === 'string' ? raw.prompt.trim() : '';

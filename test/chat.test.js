@@ -53,3 +53,52 @@ test('chat needs no login, auto-provisions a session, routes and logs', async ()
   closeDb();
   fs.rmSync(TEST_DB, { force: true, maxRetries: 5, retryDelay: 100 });
 });
+
+test('history returns this session\'s past text-chat exchanges in order', async () => {
+  const http = require('node:http');
+  const TEST_DB_2 = path.join(__dirname, 'test-chat-history.sqlite');
+  process.env.DB_PATH = TEST_DB_2;
+
+  let replyCount = 0;
+  const fakeOllama = http.createServer((req, res) => {
+    replyCount += 1;
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ message: { content: `reply ${replyCount}` } }));
+  });
+  await new Promise((resolve) => fakeOllama.listen(0, resolve));
+  process.env.OLLAMA_BASE_URL = `http://localhost:${fakeOllama.address().port}`;
+  process.env.LOCAL_GENERAL_MODEL = 'qwen2.5:7b';
+  process.env.LOCAL_CODING_MODEL = '';
+
+  const { createApp } = require('../server/index.js');
+  const { closeDb } = require('../server/db.js');
+  const app = createApp();
+  const server = app.listen(0);
+  const base = `http://localhost:${server.address().port}`;
+
+  const first = await fetch(`${base}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: 'first prompt' }),
+  });
+  const cookie = first.headers.get('set-cookie');
+
+  await fetch(`${base}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    body: JSON.stringify({ prompt: 'second prompt' }),
+  });
+
+  const historyRes = await fetch(`${base}/history`, { headers: { Cookie: cookie } });
+  const { history } = await historyRes.json();
+  assert.strictEqual(history.length, 2);
+  assert.strictEqual(history[0].prompt, 'first prompt');
+  assert.strictEqual(history[1].prompt, 'second prompt');
+
+  server.close();
+  fakeOllama.close();
+  closeDb();
+  fs.rmSync(TEST_DB_2, { force: true, maxRetries: 5, retryDelay: 100 });
+  delete process.env.OLLAMA_BASE_URL;
+  delete process.env.LOCAL_GENERAL_MODEL;
+});

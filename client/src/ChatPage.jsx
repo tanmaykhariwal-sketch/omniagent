@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { sendChat, generateImage, transcribeAudio, getQuote, searchNews } from './api.js';
+import { sendChat, generateImage, transcribeAudio, getQuote, searchNews, getHistory } from './api.js';
 import { speak, isSpeechSynthesisSupported, AudioRecorder, isRecordingSupported } from './speech.js';
 import { initTheme, applyTheme } from './theme.js';
 
@@ -180,6 +180,22 @@ export default function ChatPage() {
 
   useEffect(() => {
     setTheme(initTheme());
+  }, []);
+
+  useEffect(() => {
+    getHistory()
+      .then(({ history }) => {
+        if (history.length === 0) return;
+        const restored = history.flatMap((h) => [
+          { id: crypto.randomUUID(), role: 'you', text: h.prompt },
+          { id: crypto.randomUUID(), role: 'omni', text: h.response },
+        ]);
+        setRows((r) => (r.length === 0 ? restored : r));
+      })
+      .catch(() => {
+        // history is a nice-to-have restore, not essential -- starting
+        // with an empty chat is a fine fallback if this fails
+      });
   }, []);
 
   useEffect(() => {
