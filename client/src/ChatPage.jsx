@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { sendChat, generateImage, transcribeAudio, getQuote, searchNews, getHistory, analyzeFile } from './api.js';
+import { sendChat, generateImage, transcribeAudio, getQuote, searchNews, getHistory, analyzeFile, getPinned, togglePin } from './api.js';
 import { speak, isSpeechSynthesisSupported, AudioRecorder, isRecordingSupported } from './speech.js';
 import { initTheme, applyTheme } from './theme.js';
 
@@ -112,6 +112,15 @@ function CheckIcon() {
   );
 }
 
+function PinIcon({ filled }) {
+  return (
+    <svg viewBox="0 0 16 16" width="13" height="13" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M6 2h4l-.5 4.5L11 8.5H5L6.5 6.5 6 2z" />
+      <path d="M8 8.5V14" />
+    </svg>
+  );
+}
+
 function SunIcon() {
   return (
     <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
@@ -191,6 +200,9 @@ export default function ChatPage() {
   const [copiedId, setCopiedId] = useState(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [persona, setPersona] = useState(null);
+  const [pinnedOpen, setPinnedOpen] = useState(false);
+  const [pinnedItems, setPinnedItems] = useState([]);
+  const [pinnedLoading, setPinnedLoading] = useState(false);
   const textareaRef = useRef(null);
   const recorderRef = useRef(null);
   const chatEndRef = useRef(null);
@@ -206,7 +218,7 @@ export default function ChatPage() {
         if (history.length === 0) return;
         const restored = history.flatMap((h) => [
           { id: crypto.randomUUID(), role: 'you', text: h.prompt },
-          { id: crypto.randomUUID(), role: 'omni', text: h.response },
+          { id: crypto.randomUUID(), role: 'omni', text: h.response, queryId: h.id, pinned: !!h.pinned },
         ]);
         setRows((r) => (r.length === 0 ? restored : r));
       })
@@ -262,6 +274,40 @@ export default function ChatPage() {
   function togglePersona(id) {
     setPersona((p) => (p === id ? null : id));
     textareaRef.current?.focus();
+  }
+
+  async function handleTogglePin(row) {
+    if (!row.queryId) return;
+    const nextPinned = !row.pinned;
+    setRows((r) => r.map((x) => (x.id === row.id ? { ...x, pinned: nextPinned } : x)));
+    try {
+      await togglePin(row.queryId, nextPinned);
+    } catch {
+      setRows((r) => r.map((x) => (x.id === row.id ? { ...x, pinned: !nextPinned } : x)));
+    }
+  }
+
+  async function openPinned() {
+    setPinnedOpen(true);
+    setPinnedLoading(true);
+    try {
+      const { pinned } = await getPinned();
+      setPinnedItems(pinned);
+    } catch {
+      setPinnedItems([]);
+    } finally {
+      setPinnedLoading(false);
+    }
+  }
+
+  async function unpinFromPanel(queryId) {
+    setPinnedItems((items) => items.filter((it) => it.id !== queryId));
+    setRows((r) => r.map((x) => (x.queryId === queryId ? { ...x, pinned: false } : x)));
+    try {
+      await togglePin(queryId, false);
+    } catch {
+      // best-effort -- panel already reflects the optimistic removal
+    }
   }
 
   async function submit(e) {
@@ -321,9 +367,11 @@ export default function ChatPage() {
     setRows((r) => appendRows(r, { id, role: 'you', text: prompt }, { id: `${id}-status`, role: 'typing' }));
 
     try {
-      const { response, suggestions } = await sendChat(prompt, persona);
+      const { response, suggestions, queryId } = await sendChat(prompt, persona);
       setRows((r) =>
-        r.map((row) => (row.id === `${id}-status` ? { id: row.id, role: 'omni', text: response, suggestions } : row))
+        r.map((row) =>
+          row.id === `${id}-status` ? { id: row.id, role: 'omni', text: response, suggestions, queryId, pinned: false } : row
+        )
       );
     } catch (err) {
       setRows((r) =>
@@ -394,6 +442,14 @@ export default function ChatPage() {
       <header className="app-header">
         <p className="wordmark">OmniAgent</p>
         <div className="header-actions">
+          <button
+            className="theme-toggle"
+            onClick={openPinned}
+            title="Pinned answers"
+            aria-label="View pinned answers"
+          >
+            <PinIcon filled />
+          </button>
           <button
             className="theme-toggle"
             onClick={toggleTheme}
@@ -501,6 +557,17 @@ export default function ChatPage() {
                           aria-label="Read message aloud"
                         >
                           <SpeakerIcon />
+                        </button>
+                      )}
+                      {row.queryId && (
+                        <button
+                          className={`speak-btn ${row.pinned ? 'active' : ''}`}
+                          type="button"
+                          onClick={() => handleTogglePin(row)}
+                          title={row.pinned ? 'Unpin' : 'Pin this answer'}
+                          aria-label={row.pinned ? 'Unpin this answer' : 'Pin this answer'}
+                        >
+                          <PinIcon filled={row.pinned} />
                         </button>
                       )}
                     </div>
@@ -611,6 +678,33 @@ export default function ChatPage() {
           </form>
         </div>
       </div>
+
+      {pinnedOpen && (
+        <div className="pinned-overlay" role="dialog" aria-label="Pinned answers" onClick={() => setPinnedOpen(false)}>
+          <div className="pinned-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="pinned-panel-head">
+              <h2>Pinned answers</h2>
+              <button className="mic-btn" type="button" onClick={() => setPinnedOpen(false)} aria-label="Close pinned answers">
+                ×
+              </button>
+            </div>
+            {pinnedLoading && <p className="chat-empty-sub">Loading…</p>}
+            {!pinnedLoading && pinnedItems.length === 0 && (
+              <p className="chat-empty-sub">Nothing pinned yet. Pin an answer with the pin icon on any response.</p>
+            )}
+            {!pinnedLoading &&
+              pinnedItems.map((item) => (
+                <div className="pinned-item" key={item.id}>
+                  <p className="pinned-item-prompt">{item.prompt}</p>
+                  <p className="pinned-item-response">{item.response}</p>
+                  <button className="chip" type="button" onClick={() => unpinFromPanel(item.id)}>
+                    Unpin
+                  </button>
+                </div>
+              ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

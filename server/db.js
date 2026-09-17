@@ -35,6 +35,15 @@ function getDb() {
       created_at TEXT NOT NULL
     );
   `);
+  // ALTER TABLE ... ADD COLUMN has no IF NOT EXISTS in SQLite, and
+  // CREATE TABLE IF NOT EXISTS above is a no-op on a DB file that already
+  // has the queries table from before this column existed. Try the add,
+  // ignore the "duplicate column" error on every run after the first.
+  try {
+    dbInstance.exec('ALTER TABLE queries ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0');
+  } catch (err) {
+    if (!/duplicate column/i.test(err.message)) throw err;
+  }
   return dbInstance;
 }
 

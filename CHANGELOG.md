@@ -5,24 +5,43 @@ problem behind it, not a byte-level diff. For the literal diffs, use
 `git log` / `git show <hash>` in this repo; this file complements that
 history with the reasoning, decided or discovered along the way.
 
+Each entry's **Date** is the change's commit timestamp (`git log`, local
+time). **Tokens** is real usage where a tool actually reports it (e.g. a
+subagent review's own token count, shown in its completion notification);
+where no tool exposes a number for that unit of work, it says so rather
+than guessing.
+
 Newest entries at the top.
 
 ---
 
+## Personal dashboard: pin and revisit answers
+
+**Date:** 2026-09-17 (pending commit)
+**What:** `POST /queries/:id/pin` and `GET /pinned` (capped at 50 rows, same limit as `/history`) let a user pin/unpin any past answer and view all pinned answers in one place; `/chat` now returns the new row's id as `queryId` so the client can address it, and `/history` returns `id`/`pinned` alongside the existing fields. `ChatPage.jsx` adds a pin toggle next to each answer's copy/read-aloud buttons and a header button opening an overlay panel listing pinned answers.
+**Why:** Continuing the feature-parity list "biggest to smallest" — #18 on the list (pin/favorite answers, view them in one place). A caveman subagent review and an ecc security-reviewer subagent review (per standing instruction to run both before committing) each caught one real issue, both fixed: the new pin routes weren't in any rate-limiter group unlike every other mutating route (`/chat`, `/history`, `/finance`, `/news`), and `GET /pinned` had no row cap unlike `/history`'s existing `MAX_HISTORY` limit — a user with thousands of pinned rows would get an unbounded response every time they opened the panel. Also added a `typeof === 'boolean'` check on the pin request body, since it was silently coercing any truthy value.
+**Files:** `server/db.js` (new `pinned` column, idempotent migration), `server/chat.js`, `server/index.js`, `client/src/ChatPage.jsx`, `client/src/api.js`, `client/src/styles.css`, `client/vite.config.js`, `test/chat.test.js`.
+**Tokens:** subagent reviews only (main implementation cost isn't exposed by any available tool) — caveman-reviewer: 81,828 tokens; ecc security-reviewer: 79,501 tokens.
+
 ## Smart follow-up suggestions, and a live safety-classifier bug fix
 
+**Date:** 2026-09-17 15:19
 **What:** `server/suggestions.js` generates 2-3 short follow-up questions after each chat answer (feature #27), rendered as clickable chips under the latest assistant message; reuses whichever adapter just answered, capped at an 8s non-throwing timeout. Separately, `server/response-sanity.js` detects when OpenRouter's free auto-router (`openrouter/free`) lands on a safety/moderation model instead of a real chat model and returns fixed-format text like `"User Safety: safe\nResponse Safety: safe"` -- previously only caught inline in memory extraction, now centralized and wired into `server/router.js`'s core adapter loop.
 **Why:** Continuing the feature list "biggest to smallest." While live-testing suggestions, a real chat question ("What is the tallest mountain in the world?") came back with the safety-classifier garbage as its actual visible answer -- the same OpenRouter flakiness previously seen only in a background memory-extraction call, now confirmed hitting real user-facing responses. Fixed at the correct layer (the router's adapter-fallthrough loop, not just memory.js) so any category falls through to the next configured adapter instead of showing the user a broken response. A caveman subagent review before committing caught two real issues, both fixed: the suggestions call had no outer timeout of its own (the adapter's internal ~20s timeout is too slow for an optional feature riding on an already-completed answer), and the suggestion chips used the suggestion text itself as a React key, fragile against duplicate strings -- switched to an index key since the array is short-lived and fully replaced each response.
 **Files:** `server/suggestions.js` (new), `server/response-sanity.js` (new), `server/chat.js`, `server/router.js`, `server/memory.js`, `client/src/ChatPage.jsx`, `client/src/styles.css`, `test/suggestions.test.js` (new), `test/response-sanity.test.js` (new), `test/router.test.js`, `test/chat.test.js`.
+**Tokens:** not tracked (no token-usage API available for this unit of work).
 
 ## File uploads and custom personas
 
+**Date:** 2026-09-17 14:13
 **What:** Added `POST /analyze-file` (extracts text from PDF via `pdf-parse`, DOCX via `mammoth`, CSV/TXT as plain text, then routes it through the normal chat pipeline) and `server/personas.js` (a small fixed set of tone instructions -- Professional/Casual/Creative/Technical -- selectable as chips, folded into the system prompt via the same `extraContext` mechanism memory uses).
 **Why:** Working through a user-supplied feature-parity list against other AI chat apps, taken "biggest to smallest." Both were reviewed by a caveman subagent and an ecc security-reviewer subagent before committing, per standing instruction to invoke both. The ecc review caught one real HIGH-severity issue: `extractText()` ran `pdf-parse`/`mammoth` on the *entire* buffer before the 8000-char truncation cap ever applied, so a crafted PDF/DOCX could cause pathological CPU/memory use before truncation ever kicked in -- a DoS reachable by any user (there's no login). Fixed with a 30-page cap on PDF parsing and a 15s timeout wrapping both parsers. Personas are looked up from a fixed server-side map by id only -- the client never sends free-text tone content, so persona selection can't be used to inject arbitrary text into the system prompt (confirmed by the review, and by a regression test asserting an unknown id resolves to `null`, never the raw input).
 **Files:** `server/file-extract.js` (new), `server/files.js` (new), `server/personas.js` (new), `server/chat.js`, `server/index.js`, `client/src/ChatPage.jsx`, `client/src/api.js`, `client/vite.config.js`, `test/file-extract.test.js` (new), `test/files.test.js` (new), `test/personas.test.js` (new), `test/chat.test.js`.
+**Tokens:** not tracked (no token-usage API available for this unit of work).
 
 ## Conversation history
 
+**Date:** 2026-09-17 11:32
 **What:** Added `GET /history`, which returns this session's past text-chat
 exchanges from the `queries` table (already being logged, never read back).
 `ChatPage` loads it on mount so a page reload no longer wipes the
@@ -37,9 +56,11 @@ silently hit Vite's own fallback HTML instead of the backend (production is
 unaffected — no separate dev proxy there, one Express origin serves both).
 **Files:** `server/chat.js`, `server/index.js`, `client/src/ChatPage.jsx`,
 `client/src/api.js`, `client/vite.config.js`, `test/chat.test.js`.
+**Tokens:** not tracked (no token-usage API available for this unit of work).
 
 ## Cross-conversation memory, crisp answers, cloud-first routing
 
+**Date:** 2026-09-17 11:23
 **What:** Three fixes from the same live-testing pass:
 - Built `server/memory.js` to extract and remember durable facts about the
   user (role, preferences, ongoing projects) across separate conversations,
@@ -74,9 +95,11 @@ unpredictable pick.
 `server/local-adapter.js`, `server/cloud-adapter.js`,
 `server/adapters/*-general.js`, `server/adapters/*-coding.js`, `server/db.js`
 (new `memories` table), `test/memory.test.js` (new), `test/db.test.js`.
+**Tokens:** not tracked (no token-usage API available for this unit of work).
 
 ## Removed decorative keyboard-shortcut badges
 
+**Date:** 2026-09-17 10:59
 **What:** Removed the `⌥1`/`⌥2`/`⌥3` hints shown next to the Summarize/
 Explain code/Draft email quick-action chips.
 **Why:** The user asked what they were. They implied working Alt+digit
@@ -84,9 +107,11 @@ shortcuts that were never actually wired to a keydown handler — a real,
 if minor, UX bug (a promise the UI didn't keep). Removed rather than
 implemented, per explicit request, once the gap was found.
 **Files:** `client/src/ChatPage.jsx`, `client/src/styles.css`.
+**Tokens:** not tracked (no token-usage API available for this unit of work).
 
 ## Removed sign-in entirely
 
+**Date:** 2026-09-17 10:52
 **What:** `requireAuth` now silently provisions an anonymous session (a
 synthetic `anon-<uuid>@omniagent.local` row) on first request instead of
 rejecting with 401. `LoginPage` and all register/login/logout UI wiring
@@ -97,9 +122,11 @@ password login back instead, then explicitly re-requested and kept.
 **Files:** `server/auth.js`, `client/src/App.jsx`, `client/src/ChatPage.jsx`,
 `client/src/api.js`, `client/src/LoginPage.jsx` (deleted),
 `test/chat.test.js`, `test/finance-news.test.js`, `test/media.test.js`.
+**Tokens:** not tracked (no token-usage API available for this unit of work).
 
 ## Security/accessibility/performance fixes from subagent review
 
+**Date:** 2026-09-16 18:16
 **What:** Dispatched a 4-agent review team (security, React/frontend,
 accessibility, performance) against the whole codebase. Fixes applied:
 production now refuses to start with the public `dev-secret` session
@@ -118,9 +145,11 @@ the website better"). Each fix maps to a concrete finding from the review,
 not a subjective style pass.
 **Files:** `server/index.js`, `client/src/App.jsx`, `client/src/ChatPage.jsx`,
 `client/src/LoginPage.jsx`.
+**Tokens:** not tracked (no token-usage API available for this unit of work).
 
 ## Starter suggestion cards
 
+**Date:** 2026-09-16 17:58
 **What:** Added six emoji quick-start prompts (Explain a concept, Debug
 some code, Draft an email, Generate an image, Check a stock, Today's news)
 to the empty chat state, each prefilling the composer and switching mode
@@ -128,9 +157,11 @@ where relevant.
 **Why:** Explicit request for ChatGPT-style starter suggestions under the
 "How can I help?" empty state.
 **Files:** `client/src/ChatPage.jsx`, `client/src/styles.css`.
+**Tokens:** not tracked (no token-usage API available for this unit of work).
 
 ## Frontend redesign: Command Palette → standard chat app
 
+**Date:** 2026-09-15 15:15
 **What:** Full visual-world replacement of the original dark, keyboard-
 first "Command Palette" UI (addressed rows, mono labels, 3-tick status
 marker) with a conventional chat-bubble layout: header with wordmark and
@@ -144,9 +175,11 @@ direction itself was rejected, not just its execution.
 **Files:** `client/src/App.jsx`, `client/src/ChatPage.jsx` (rewritten),
 `client/src/LoginPage.jsx`, `client/src/styles.css` (rewritten),
 `client/src/theme.js` (new), `client/src/main.jsx`, `PRODUCT.md`, `DESIGN.md`.
+**Tokens:** not tracked (no token-usage API available for this unit of work).
 
 ## Finance quotes and news search
 
+**Date:** 2026-09-15 14:56
 **What:** Added `GET /finance` (Yahoo Finance's public chart API) and
 `GET /news` (Google News RSS, custom XML parser) — both free, no API key.
 **Why:** Completed the original spec's category list — the last of the
@@ -157,9 +190,11 @@ single-identity rule that governs every other integration in this project.
 **Files:** `server/finance-news.js` (new), `server/adapters/yahoo-finance.js`
 (new), `server/adapters/google-news.js` (new), `server/index.js`,
 `client/src/ChatPage.jsx`, `client/src/api.js`.
+**Tokens:** not tracked (no token-usage API available for this unit of work).
 
 ## Image generation, speech-to-text, browser text-to-speech
 
+**Date:** 2026-09-15 14:42
 **What:** Added `POST /generate-image` and `POST /transcribe` via Hugging
 Face's free Inference API (`hf-inference` provider). Text-to-speech uses
 the browser's built-in Web Speech Synthesis API instead of a backend route.
@@ -177,9 +212,11 @@ live.
 **Files:** `server/media.js` (new), `server/adapters/hf-image.js` (new),
 `server/adapters/hf-whisper.js` (new), `client/src/speech.js` (new),
 `client/src/ChatPage.jsx`, `client/src/api.js`, `server/index.js`.
+**Tokens:** not tracked (no token-usage API available for this unit of work).
 
 ## Fixed category routing when local models are unconfigured
 
+**Date:** 2026-09-15 12:47
 **What:** `CATEGORY_PRIMARY` changed from a flat string map (only
 `ollama-*` names) to an ordered list of named candidates per category.
 **Why:** Real bug, found via a properly isolated live test: on a host with
@@ -191,9 +228,11 @@ inaccurate (the test wasn't properly isolated) — self-corrected once a
 genuinely isolated test (local model env vars explicitly cleared) exposed
 the real bug.
 **Files:** `server/router.js`, `test/router.test.js`.
+**Tokens:** not tracked (no token-usage API available for this unit of work).
 
 ## Fixed stale OpenRouter free-tier model slugs
 
+**Date:** 2026-09-15 12:29
 **What:** Replaced `qwen/qwen3-coder:free` (now 404s — "unavailable for
 free, use qwen/qwen3-coder instead") with `cohere/north-mini-code:free` for
 coding, and `openrouter/free` (OpenRouter's own auto-router across free
@@ -209,9 +248,11 @@ certain models and a live check settled the question either way).
 **Files:** `server/adapters/openrouter-coding.js`,
 `server/adapters/openrouter-general.js`,
 `server/adapters/openrouter-hy3.js` (new), `.env.example`.
+**Tokens:** not tracked (no token-usage API available for this unit of work).
 
 ## OpenRouter free-tier fallback, prep for Render deployment
 
+**Date:** 2026-09-15 12:19
 **What:** Reintroduced a cloud tier (`server/cloud-adapter.js`,
 `openrouter-coding`/`openrouter-general`) sitting after the local Ollama
 adapters in the same fallback chain, rather than as a separate code path.
@@ -226,17 +267,21 @@ earlier in the project.
 `server/adapters/openrouter-coding.js` (new),
 `server/adapters/openrouter-general.js` (new), `server/router.js`,
 `render.yaml` (new), `.env.example`.
+**Tokens:** not tracked (no token-usage API available for this unit of work).
 
 ## Translation as a routed category
 
+**Date:** 2026-09-15 10:36
 **What:** Added `translation` as a full category in the lead-dispatch/
 classifier/router system, rather than a special case.
 **Why:** Kept consistent with the existing multi-category architecture
 instead of a one-off branch.
 **Files:** `server/lead.js`, `server/classify.js`, `server/router.js`.
+**Tokens:** not tracked (no token-usage API available for this unit of work).
 
 ## Went fully local, removed all cloud providers
 
+**Date:** 2026-09-09 16:52
 **What:** Removed all seven cloud provider adapters (Anthropic, OpenAI,
 Gemini, Mistral, Cohere, Kimi, Hugging Face) that the app originally
 supported, leaving it local-only on Ollama models.
@@ -246,9 +291,11 @@ placeholder API keys, exhausted billing, suspended accounts, and
 provider-side rate limits across the seven providers.
 **Files:** all `server/adapters/<cloud-provider>.js` files (deleted),
 `server/router.js`, `.env.example`, `README.md`.
+**Tokens:** not tracked (no token-usage API available for this unit of work).
 
 ## Lead + subagent dispatch with synthesis
 
+**Date:** 2026-09-09 16:22
 **What:** Redesigned routing from flat keyword-based classification to a
 lead model deciding which 1-2 of the categories should handle each prompt
 (as a JSON decision), each category's specialist answering independently,
@@ -260,9 +307,11 @@ so multi-part prompts spanning two categories get handled properly instead
 of forced into one bucket.
 **Files:** `server/lead.js` (new), `server/router.js`, `test/lead.test.js`
 (new), `test/router.test.js`.
+**Tokens:** not tracked (no token-usage API available for this unit of work).
 
 ## Core scaffold
 
+**Date:** 2026-09-08 17:21 – 19:57
 **What:** Initial build: Express app with `node:sqlite`-backed sessions
 (`SqliteSessionStore`, avoiding a native-compiler dependency),
 email+password auth (`bcryptjs`), a `users`/`queries`/`sessions` schema,
@@ -279,3 +328,4 @@ dependency entirely.
 **Files:** `server/index.js`, `server/db.js`, `server/sqlite-session-store.js`,
 `server/auth.js`, `server/chat.js`, `server/classify.js`, `server/router.js`,
 `server/rate-limit.js`, `server/validate.js`, `server/fetch-timeout.js`.
+**Tokens:** not tracked (no token-usage API available for this unit of work).

@@ -15,6 +15,8 @@ export default defineConfig({
       '/analyze-file': 'http://localhost:3000',
       '/finance': 'http://localhost:3000',
       '/news': 'http://localhost:3000',
+      '/pinned': 'http://localhost:3000',
+      '/queries': 'http://localhost:3000',
     },
   },
 });

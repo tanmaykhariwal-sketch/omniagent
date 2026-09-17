@@ -188,6 +188,13 @@
     background: var(--tag-soft);
   }
 
+  .entry-date {
+    font-size: 12px;
+    color: var(--text-faint);
+    margin-left: auto;
+    white-space: nowrap;
+  }
+
   .card h2 {
     font-size: 17px;
     font-weight: 700;
@@ -278,34 +285,47 @@
 
     <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Feature + Fix</span><h2>Smart follow-up suggestions, and a live safety-classifier bug fix</h2></div>
+        <div class="card-head"><span class="tag">Feature + Fix</span><h2>Personal dashboard: pin and revisit answers</h2><span class="entry-date">2026-09-17 (pending commit)</span></div>
+        <div class="field"><span class="field-label">What</span><p><code>POST /queries/:id/pin</code> and <code>GET /pinned</code> (capped at 50 rows) let a user pin/unpin any past answer and view all pinned answers in one place; <code>/chat</code> now returns the new row's id as <code>queryId</code>, and <code>/history</code> returns <code>id</code>/<code>pinned</code>. <code>ChatPage.jsx</code> adds a pin toggle next to each answer's copy/read-aloud buttons and a header button opening an overlay panel.</p></div>
+        <div class="field"><span class="field-label">Why</span><p>Continuing the feature list "biggest to smallest" — #18 on the list. A caveman subagent review and an ecc security-reviewer subagent review each caught one real issue, both fixed: the new pin routes weren't in any rate-limiter group, and <code>GET /pinned</code> had no row cap unlike <code>/history</code>'s existing limit. Also added a boolean type check on the pin request body.</p></div>
+        <div class="field"><span class="field-label">Files</span><div class="files"><code>server/db.js</code><code>server/chat.js</code><code>server/index.js</code><code>client/src/ChatPage.jsx</code><code>client/src/api.js</code><code>client/src/styles.css</code><code>client/vite.config.js</code><code>test/chat.test.js</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Subagent reviews only — caveman-reviewer: 81,828; ecc security-reviewer: 79,501. Main implementation cost isn't exposed by any available tool.</p></div>
+      </div>
+    </div>
+
+    <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
+      <div class="card">
+        <div class="card-head"><span class="tag">Feature + Fix</span><h2>Smart follow-up suggestions, and a live safety-classifier bug fix</h2><span class="entry-date">2026-09-17 15:19</span></div>
         <div class="field"><span class="field-label">What</span><p><code>server/suggestions.js</code> generates 2-3 short follow-up questions after each chat answer, rendered as clickable chips under the latest assistant message; reuses whichever adapter just answered, capped at an 8s non-throwing timeout. Separately, <code>server/response-sanity.js</code> detects when OpenRouter's free auto-router lands on a safety/moderation model and returns fixed-format text like <code>"User Safety: safe"</code> instead of a real answer — previously only caught inline in memory extraction, now centralized and wired into <code>server/router.js</code>'s core adapter loop.</p></div>
         <div class="field"><span class="field-label">Why</span><p>Continuing the feature list "biggest to smallest." While live-testing suggestions, a real question ("What is the tallest mountain in the world?") came back with the safety-classifier garbage as its actual visible answer — the same OpenRouter flakiness previously seen only in a background memory-extraction call, now confirmed hitting real user-facing responses. Fixed at the correct layer (the router's fallthrough loop, not just memory.js). A caveman subagent review caught two real issues before commit, both fixed: the suggestions call had no outer timeout of its own, and the suggestion chips used the suggestion text as a React key — fragile against duplicates, switched to an index key.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>server/suggestions.js</code><code>server/response-sanity.js</code><code>server/chat.js</code><code>server/router.js</code><code>server/memory.js</code><code>client/src/ChatPage.jsx</code><code>client/src/styles.css</code><code>test/suggestions.test.js</code><code>test/response-sanity.test.js</code><code>test/router.test.js</code><code>test/chat.test.js</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Not tracked — no token-usage API available for this unit of work.</p></div>
       </div>
     </div>
 
     <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Feature</span><h2>File uploads and custom personas</h2></div>
+        <div class="card-head"><span class="tag">Feature</span><h2>File uploads and custom personas</h2><span class="entry-date">2026-09-17 14:13</span></div>
         <div class="field"><span class="field-label">What</span><p>Added <code>POST /analyze-file</code> (extracts text from PDF via <code>pdf-parse</code>, DOCX via <code>mammoth</code>, CSV/TXT as plain text, then routes it through the normal chat pipeline) and <code>server/personas.js</code> (a small fixed set of tone instructions — Professional/Casual/Creative/Technical — selectable as chips).</p></div>
         <div class="field"><span class="field-label">Why</span><p>Working through a user-supplied feature-parity list against other AI chat apps, taken "biggest to smallest." Reviewed by both a caveman subagent and an ecc security-reviewer subagent before committing. The ecc review caught one real HIGH-severity issue: text extraction ran the full parser before the 8000-char truncation cap ever applied — a DoS reachable by any user. Fixed with a 30-page cap on PDF parsing and a 15s parse timeout. Personas are looked up from a fixed server-side map by id only, so persona selection can't inject arbitrary text into the system prompt.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>server/file-extract.js</code><code>server/files.js</code><code>server/personas.js</code><code>server/chat.js</code><code>server/index.js</code><code>client/src/ChatPage.jsx</code><code>client/src/api.js</code><code>client/vite.config.js</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Not tracked — no token-usage API available for this unit of work.</p></div>
       </div>
     </div>
 
     <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Feature</span><h2>Conversation history</h2></div>
+        <div class="card-head"><span class="tag">Feature</span><h2>Conversation history</h2><span class="entry-date">2026-09-17 11:32</span></div>
         <div class="field"><span class="field-label">What</span><p>Added <code>GET /history</code>, returning this session's past text-chat exchanges from the <code>queries</code> table (already logged, never read back). <code>ChatPage</code> loads it on mount so a page reload no longer wipes the conversation.</p></div>
         <div class="field"><span class="field-label">Why</span><p>Requested directly ("what about memory??? y r u missing out on points and features?"). Scoped to text chat only — image generation, finance quotes, and news search stay session-only, since silently re-showing a stale stock quote or headline would be misleading. Also fixed a local-dev-only bug: <code>vite.config.js</code>'s proxy list was missing <code>/history</code>, so the request silently hit Vite's own fallback page instead of the backend (production is unaffected).</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>server/chat.js</code><code>server/index.js</code><code>client/src/ChatPage.jsx</code><code>client/src/api.js</code><code>client/vite.config.js</code><code>test/chat.test.js</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Not tracked — no token-usage API available for this unit of work.</p></div>
       </div>
     </div>
 
     <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Feature + Fix</span><h2>Cross-conversation memory, crisp answers, cloud-first routing</h2></div>
+        <div class="card-head"><span class="tag">Feature + Fix</span><h2>Cross-conversation memory, crisp answers, cloud-first routing</h2><span class="entry-date">2026-09-17 11:23</span></div>
         <div class="field"><span class="field-label">What</span>
           <ul>
             <li>Built <code>server/memory.js</code> to extract and remember durable facts about the user across separate conversations, injected into future system prompts via a new optional <code>extraContext</code> parameter on both adapter factories.</li>
@@ -315,132 +335,147 @@
         </div>
         <div class="field"><span class="field-label">Why</span><p>Memory was requested after the crispness issue surfaced live — "what all ai's are working in the backend" returned an 8-section generic essay about AI infrastructure in general, nothing about OmniAgent's own backend. The reorder fixed a diagnosed problem: local Ollama (0% GPU, confirmed) was taking 10-20s+ per attempt, twice per message — up to ~40s of timeouts before reaching a cloud answer that would've come back in seconds anyway. This also delivers "online use the online tools, offline use the offline tools" for free, with no explicit connectivity detection. Also fixed live: memory-extraction initially used OpenRouter's free auto-router, which landed on a safety/moderation model and returned <code>"User Safety: safe"</code> as a stored "fact" — fixed by reusing whichever adapter had just successfully answered.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>server/memory.js</code><code>server/router.js</code><code>server/chat.js</code><code>server/local-adapter.js</code><code>server/cloud-adapter.js</code><code>server/adapters/*-general.js</code><code>server/adapters/*-coding.js</code><code>server/db.js</code><code>test/memory.test.js</code><code>test/db.test.js</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Not tracked — no token-usage API available for this unit of work.</p></div>
       </div>
     </div>
 
     <div class="entry" style="--tag-color:var(--fix); --tag-soft:var(--fix-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Fix</span><h2>Removed decorative keyboard-shortcut badges</h2></div>
+        <div class="card-head"><span class="tag">Fix</span><h2>Removed decorative keyboard-shortcut badges</h2><span class="entry-date">2026-09-17 10:59</span></div>
         <div class="field"><span class="field-label">What</span><p>Removed the <code>⌥1</code>/<code>⌥2</code>/<code>⌥3</code> hints shown next to the Summarize/Explain code/Draft email quick-action chips.</p></div>
         <div class="field"><span class="field-label">Why</span><p>They implied working Alt+digit shortcuts that were never actually wired to a keydown handler — a real, if minor, UX bug. Removed rather than implemented, per explicit request once the gap was found.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>client/src/ChatPage.jsx</code><code>client/src/styles.css</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Not tracked — no token-usage API available for this unit of work.</p></div>
       </div>
     </div>
 
     <div class="entry" style="--tag-color:var(--change); --tag-soft:var(--change-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Decision</span><h2>Removed sign-in entirely</h2></div>
+        <div class="card-head"><span class="tag">Decision</span><h2>Removed sign-in entirely</h2><span class="entry-date">2026-09-17 10:52</span></div>
         <div class="field"><span class="field-label">What</span><p><code>requireAuth</code> now silently provisions an anonymous session on first request instead of rejecting with 401. <code>LoginPage</code> and all register/login/logout UI wiring removed; the backend endpoints still exist, unused.</p></div>
         <div class="field"><span class="field-label">Why</span><p>Explicit request ("i want no signin required... all free"). Implemented once, reverted once for email+password, then explicitly re-requested and kept.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>server/auth.js</code><code>client/src/App.jsx</code><code>client/src/ChatPage.jsx</code><code>client/src/api.js</code><code>client/src/LoginPage.jsx (deleted)</code><code>test/chat.test.js</code><code>test/finance-news.test.js</code><code>test/media.test.js</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Not tracked — no token-usage API available for this unit of work.</p></div>
       </div>
     </div>
 
     <div class="entry" style="--tag-color:var(--fix); --tag-soft:var(--fix-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Fix</span><h2>Security/accessibility/performance fixes from subagent review</h2></div>
+        <div class="card-head"><span class="tag">Fix</span><h2>Security/accessibility/performance fixes from subagent review</h2><span class="entry-date">2026-09-16 18:16</span></div>
         <div class="field"><span class="field-label">What</span><p>Dispatched a 4-agent review team (security, React, accessibility, performance). Fixes: production refuses to start with the public <code>dev-secret</code> session fallback; static assets get long-lived cache headers; an untrusted news-API link is validated as http(s) before being rendered as <code>&lt;a href&gt;</code>; stable list keys; mic stream released on unmount; app-level error boundary; a missing <code>quote.price</code> no longer crashes rendering; chat history capped at 200 rows; aria-labels and live regions added throughout.</p></div>
         <div class="field"><span class="field-label">Why</span><p>Explicit request ("make a team and work with subagents to make the website better"). Each fix maps to a concrete finding, not a subjective style pass.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>server/index.js</code><code>client/src/App.jsx</code><code>client/src/ChatPage.jsx</code><code>client/src/LoginPage.jsx</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Not tracked — no token-usage API available for this unit of work.</p></div>
       </div>
     </div>
 
     <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Feature</span><h2>Starter suggestion cards</h2></div>
+        <div class="card-head"><span class="tag">Feature</span><h2>Starter suggestion cards</h2><span class="entry-date">2026-09-16 17:58</span></div>
         <div class="field"><span class="field-label">What</span><p>Added six emoji quick-start prompts (Explain a concept, Debug some code, Draft an email, Generate an image, Check a stock, Today's news) to the empty chat state.</p></div>
         <div class="field"><span class="field-label">Why</span><p>Explicit request for ChatGPT-style starter suggestions under the "How can I help?" empty state.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>client/src/ChatPage.jsx</code><code>client/src/styles.css</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Not tracked — no token-usage API available for this unit of work.</p></div>
       </div>
     </div>
 
     <div class="entry" style="--tag-color:var(--redesign); --tag-soft:var(--redesign-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Redesign</span><h2>Command Palette → standard chat app</h2></div>
+        <div class="card-head"><span class="tag">Redesign</span><h2>Command Palette → standard chat app</h2><span class="entry-date">2026-09-15 15:15</span></div>
         <div class="field"><span class="field-label">What</span><p>Full visual-world replacement of the original dark, keyboard-first "Command Palette" UI with a conventional chat-bubble layout: header, message bubbles, bottom composer. Light theme by default, dark toggle persisted.</p></div>
         <div class="field"><span class="field-label">Why</span><p>Explicitly disliked the original interface. Confirmed direction: standard chat-app look, craft bar named "ChatGPT + Claude.ai". Treated as a full redesign, not a refinement, since the direction itself was rejected.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>client/src/App.jsx</code><code>client/src/ChatPage.jsx</code><code>client/src/LoginPage.jsx</code><code>client/src/styles.css</code><code>client/src/theme.js</code><code>client/src/main.jsx</code><code>PRODUCT.md</code><code>DESIGN.md</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Not tracked — no token-usage API available for this unit of work.</p></div>
       </div>
     </div>
 
     <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Feature</span><h2>Finance quotes and news search</h2></div>
+        <div class="card-head"><span class="tag">Feature</span><h2>Finance quotes and news search</h2><span class="entry-date">2026-09-15 14:56</span></div>
         <div class="field"><span class="field-label">What</span><p>Added <code>GET /finance</code> (Yahoo Finance's public chart API) and <code>GET /news</code> (Google News RSS) — both free, no API key.</p></div>
         <div class="field"><span class="field-label">Why</span><p>Completed the original spec's category list — last of the 7 planned capabilities. Provider names never appear in the UI, consistent with the single-identity rule.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>server/finance-news.js</code><code>server/adapters/yahoo-finance.js</code><code>server/adapters/google-news.js</code><code>server/index.js</code><code>client/src/ChatPage.jsx</code><code>client/src/api.js</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Not tracked — no token-usage API available for this unit of work.</p></div>
       </div>
     </div>
 
     <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Feature</span><h2>Image generation, speech-to-text, browser text-to-speech</h2></div>
+        <div class="card-head"><span class="tag">Feature</span><h2>Image generation, speech-to-text, browser text-to-speech</h2><span class="entry-date">2026-09-15 14:42</span></div>
         <div class="field"><span class="field-label">What</span><p>Added <code>POST /generate-image</code> and <code>POST /transcribe</code> via Hugging Face's free Inference API. Text-to-speech uses the browser's built-in Web Speech Synthesis API instead of a backend route.</p></div>
         <div class="field"><span class="field-label">Why</span><p>The app's target shifted to a real deployed website, where local-only tools can't help a visitor. TTS went browser-side after confirming live that hf-inference has zero free TTS models. Also fixed: the decommissioned <code>api-inference.huggingface.co</code> host, and a deprecated image model returning 410.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>server/media.js</code><code>server/adapters/hf-image.js</code><code>server/adapters/hf-whisper.js</code><code>client/src/speech.js</code><code>client/src/ChatPage.jsx</code><code>client/src/api.js</code><code>server/index.js</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Not tracked — no token-usage API available for this unit of work.</p></div>
       </div>
     </div>
 
     <div class="entry" style="--tag-color:var(--fix); --tag-soft:var(--fix-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Fix</span><h2>Category routing when local models are unconfigured</h2></div>
+        <div class="card-head"><span class="tag">Fix</span><h2>Category routing when local models are unconfigured</h2><span class="entry-date">2026-09-15 12:47</span></div>
         <div class="field"><span class="field-label">What</span><p><code>CATEGORY_PRIMARY</code> changed from a flat string map to an ordered list of named candidates per category.</p></div>
         <div class="field"><span class="field-label">Why</span><p>Real bug found via a properly isolated live test: on a host with no local model (like Render), every category silently fell through to whichever cloud adapter happened to be listed first, ignoring the actual requested category. An earlier "verified" claim was self-corrected once a genuinely isolated test exposed the real bug.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>server/router.js</code><code>test/router.test.js</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Not tracked — no token-usage API available for this unit of work.</p></div>
       </div>
     </div>
 
     <div class="entry" style="--tag-color:var(--fix); --tag-soft:var(--fix-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Fix</span><h2>Stale OpenRouter free-tier model slugs</h2></div>
+        <div class="card-head"><span class="tag">Fix</span><h2>Stale OpenRouter free-tier model slugs</h2><span class="entry-date">2026-09-15 12:29</span></div>
         <div class="field"><span class="field-label">What</span><p>Replaced 404ing model slugs with <code>cohere/north-mini-code:free</code> (coding) and <code>openrouter/free</code> (general, OpenRouter's own auto-router).</p></div>
         <div class="field"><span class="field-label">Why</span><p>Model slugs from search results/blogs go stale fast. Verified live against OpenRouter's own <code>/api/v1/models</code> endpoint instead of trusting documentation.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>server/adapters/openrouter-coding.js</code><code>server/adapters/openrouter-general.js</code><code>server/adapters/openrouter-hy3.js</code><code>.env.example</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Not tracked — no token-usage API available for this unit of work.</p></div>
       </div>
     </div>
 
     <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Feature</span><h2>OpenRouter free-tier fallback, prep for Render</h2></div>
+        <div class="card-head"><span class="tag">Feature</span><h2>OpenRouter free-tier fallback, prep for Render</h2><span class="entry-date">2026-09-15 12:19</span></div>
         <div class="field"><span class="field-label">What</span><p>Reintroduced a cloud tier sitting after local Ollama adapters in the same fallback chain, not a separate code path.</p></div>
         <div class="field"><span class="field-label">Why</span><p>Deploying as a real website (Render) means no Ollama server available. A host with no <code>LOCAL_*_MODEL</code> simply excludes those adapters — no environment-specific branching. OpenRouter's free tier needs no billing.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>server/cloud-adapter.js</code><code>server/adapters/openrouter-coding.js</code><code>server/adapters/openrouter-general.js</code><code>server/router.js</code><code>render.yaml</code><code>.env.example</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Not tracked — no token-usage API available for this unit of work.</p></div>
       </div>
     </div>
 
     <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Feature</span><h2>Translation as a routed category</h2></div>
+        <div class="card-head"><span class="tag">Feature</span><h2>Translation as a routed category</h2><span class="entry-date">2026-09-15 10:36</span></div>
         <div class="field"><span class="field-label">What</span><p>Added <code>translation</code> as a full category in the lead-dispatch/classifier/router system.</p></div>
         <div class="field"><span class="field-label">Why</span><p>Kept consistent with the existing multi-category architecture instead of a one-off branch.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>server/lead.js</code><code>server/classify.js</code><code>server/router.js</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Not tracked — no token-usage API available for this unit of work.</p></div>
       </div>
     </div>
 
     <div class="entry" style="--tag-color:var(--change); --tag-soft:var(--change-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Decision</span><h2>Went fully local, removed all cloud providers</h2></div>
+        <div class="card-head"><span class="tag">Decision</span><h2>Went fully local, removed all cloud providers</h2><span class="entry-date">2026-09-09 16:52</span></div>
         <div class="field"><span class="field-label">What</span><p>Removed all seven cloud provider adapters (Anthropic, OpenAI, Gemini, Mistral, Cohere, Kimi, Hugging Face), leaving the app local-only on Ollama.</p></div>
         <div class="field"><span class="field-label">Why</span><p>Explicit request after repeated real-world friction: invalid/placeholder keys, exhausted billing, suspended accounts, rate limits across seven providers.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>server/adapters/&lt;cloud-provider&gt;.js (deleted)</code><code>server/router.js</code><code>.env.example</code><code>README.md</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Not tracked — no token-usage API available for this unit of work.</p></div>
       </div>
     </div>
 
     <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Feature</span><h2>Lead + subagent dispatch with synthesis</h2></div>
+        <div class="card-head"><span class="tag">Feature</span><h2>Lead + subagent dispatch with synthesis</h2><span class="entry-date">2026-09-09 16:22</span></div>
         <div class="field"><span class="field-label">What</span><p>Redesigned routing: a lead model decides 1-2 categories per prompt (JSON decision), each specialist answers independently, a synthesis call combines both when two are dispatched. Falls back to keyword classifier if the lead call fails.</p></div>
         <div class="field"><span class="field-label">Why</span><p>Explicit request to route via a "team leader" model choosing the best-suited specialist(s), so multi-part prompts spanning two categories are handled properly instead of forced into one bucket.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>server/lead.js</code><code>server/router.js</code><code>test/lead.test.js</code><code>test/router.test.js</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Not tracked — no token-usage API available for this unit of work.</p></div>
       </div>
     </div>
 
     <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Foundation</span><h2>Core scaffold</h2></div>
+        <div class="card-head"><span class="tag">Foundation</span><h2>Core scaffold</h2><span class="entry-date">2026-09-08 17:21 – 19:57</span></div>
         <div class="field"><span class="field-label">What</span><p>Initial build: Express + <code>node:sqlite</code>-backed sessions, email+password auth, category classifier, router with fallback, authenticated chat endpoint with query logging, timeouts, validation, rate limiting.</p></div>
         <div class="field"><span class="field-label">Why</span><p>Followed the original spec and plan. <code>node:sqlite</code>/<code>bcryptjs</code> chosen over native alternatives because this machine has no Visual Studio Build Tools installed.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>server/index.js</code><code>server/db.js</code><code>server/sqlite-session-store.js</code><code>server/auth.js</code><code>server/chat.js</code><code>server/classify.js</code><code>server/router.js</code><code>server/rate-limit.js</code><code>server/validate.js</code><code>server/fetch-timeout.js</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Not tracked — no token-usage API available for this unit of work.</p></div>
       </div>
     </div>
 

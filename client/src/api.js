@@ -56,3 +56,16 @@ export function getQuote(symbol) {
 export function searchNews(query) {
   return fetch(`/news?q=${encodeURIComponent(query)}`, { credentials: 'include' }).then(handle);
 }
+
+export function getPinned() {
+  return fetch('/pinned', { credentials: 'include' }).then(handle);
+}
+
+export function togglePin(queryId, pinned) {
+  return fetch(`/queries/${queryId}/pin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ pinned }),
+  }).then(handle);
+}

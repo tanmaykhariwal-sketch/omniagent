@@ -94,11 +94,79 @@ test('history returns this session\'s past text-chat exchanges in order', async 
   assert.strictEqual(history.length, 2);
   assert.strictEqual(history[0].prompt, 'first prompt');
   assert.strictEqual(history[1].prompt, 'second prompt');
+  assert.ok(Number.isInteger(history[0].id));
+  assert.strictEqual(history[0].pinned, 0);
 
   server.close();
   fakeOllama.close();
   closeDb();
   fs.rmSync(TEST_DB_2, { force: true, maxRetries: 5, retryDelay: 100 });
+  delete process.env.OLLAMA_BASE_URL;
+  delete process.env.LOCAL_GENERAL_MODEL;
+});
+
+test('pinning: a query can be pinned, appears in /pinned, then unpinned', async () => {
+  const http = require('node:http');
+  const TEST_DB_4 = path.join(__dirname, 'test-chat-pin.sqlite');
+  process.env.DB_PATH = TEST_DB_4;
+
+  const fakeOllama = http.createServer((req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ message: { content: 'an answer' } }));
+  });
+  await new Promise((resolve) => fakeOllama.listen(0, resolve));
+  process.env.OLLAMA_BASE_URL = `http://localhost:${fakeOllama.address().port}`;
+  process.env.LOCAL_GENERAL_MODEL = 'qwen2.5:7b';
+  process.env.LOCAL_CODING_MODEL = '';
+
+  const { createApp } = require('../server/index.js');
+  const { closeDb } = require('../server/db.js');
+  const app = createApp();
+  const server = app.listen(0);
+  const base = `http://localhost:${server.address().port}`;
+
+  const chatRes = await fetch(`${base}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: 'pin me' }),
+  });
+  const cookie = chatRes.headers.get('set-cookie');
+  const { queryId } = await chatRes.json();
+  assert.ok(Number.isInteger(queryId));
+
+  const pinRes = await fetch(`${base}/queries/${queryId}/pin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    body: JSON.stringify({ pinned: true }),
+  });
+  assert.strictEqual(pinRes.status, 200);
+
+  const pinnedRes = await fetch(`${base}/pinned`, { headers: { Cookie: cookie } });
+  const { pinned } = await pinnedRes.json();
+  assert.strictEqual(pinned.length, 1);
+  assert.strictEqual(pinned[0].id, queryId);
+
+  // pinning someone else's query id (or one that doesn't exist) is a 404, not
+  // a silent no-op that could otherwise mask an ownership bypass
+  const wrongOwnerRes = await fetch(`${base}/queries/999999/pin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    body: JSON.stringify({ pinned: true }),
+  });
+  assert.strictEqual(wrongOwnerRes.status, 404);
+
+  await fetch(`${base}/queries/${queryId}/pin`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    body: JSON.stringify({ pinned: false }),
+  });
+  const afterUnpin = await (await fetch(`${base}/pinned`, { headers: { Cookie: cookie } })).json();
+  assert.strictEqual(afterUnpin.pinned.length, 0);
+
+  server.close();
+  fakeOllama.close();
+  closeDb();
+  fs.rmSync(TEST_DB_4, { force: true, maxRetries: 5, retryDelay: 100 });
   delete process.env.OLLAMA_BASE_URL;
   delete process.env.LOCAL_GENERAL_MODEL;
 });
