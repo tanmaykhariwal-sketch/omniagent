@@ -719,6 +719,12 @@ button {
   overflow-x: auto;
 }
 
+.language-row {
+  margin-top: 6px;
+  padding-bottom: 0;
+  justify-content: center;
+}
+
 .suggestion-row {
   margin-top: 10px;
   padding-bottom: 0;

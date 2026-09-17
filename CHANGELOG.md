@@ -15,9 +15,17 @@ Newest entries at the top.
 
 ---
 
-## Responsive polish and a message-entrance animation
+## Multi-language UI (English/Spanish/Hindi)
 
 **Date:** 2026-09-17 (pending commit)
+**What:** `client/src/i18n.js` (new) exports a small `STRINGS` dictionary for English, Spanish, and Hindi, plus `initLanguage`/`setStoredLanguage` (localStorage-persisted, same pattern as `theme.js`) and a `t(lang, key)` lookup with an English-then-key fallback chain. A language-picker chip row below the disclaimer switches the composer placeholders, empty-state text, disclaimer, privacy panel, and pinned-panel labels live.
+**Why:** Continuing the remaining "partial" items on the feature list. Deliberately scoped to UI chrome text only, not the quick-action/starter-prompt prefill text that actually gets sent to the AI as a prompt -- keeping the UI language independent of prompt content avoids sending non-English instruction text through the classifier/adapters in a way that hasn't been tested. A caveman subagent review confirmed the fallback chain doesn't leak raw keys or undefined to the UI, all three languages have the same 16 keys with no partial/silently-English strings, and `initLanguage` safely handles a corrupted or arbitrary localStorage value. It caught one real issue, fixed: the privacy and pinned-answers dialog `aria-label`s stayed hardcoded English even though their visible `<h2>` text was translated, so screen-reader users on es/hi got an English label while sighted users saw the translated text -- both now use `t(lang, ...)`. Quick-action/persona/mode chip labels and most button titles/aria-labels remain English by design for this pass; noted as a follow-up scope decision, not a bug.
+**Files:** `client/src/i18n.js` (new), `client/src/ChatPage.jsx`, `client/src/styles.css`.
+**Tokens:** Subagent review only — caveman-reviewer: 79,171. Main implementation cost isn't exposed by any available tool.
+
+## Responsive polish and a message-entrance animation
+
+**Date:** 2026-09-17 17:03
 **What:** The pinned/privacy overlay panel now goes full-width with tighter padding under the existing 640px mobile breakpoint. A subtle fade/slide-up entrance animation plays on each chat message, gated behind `@media (prefers-reduced-motion: no-preference)` so reduced-motion users get none.
 **Why:** One of the remaining "partial" polish items on the feature list. A caveman subagent review confirmed the animation is correctly scoped: `key={row.id}` stays stable across the typing-to-answer and regenerate transitions, so the animation only plays once per row on its first mount rather than replaying on every text update; the reduced-motion gate isn't inverted; and the animation uses only `opacity`/`transform` (compositor-only), so it doesn't interact badly with the existing auto-scroll-to-bottom effect.
 **Files:** `client/src/styles.css`.

@@ -285,7 +285,17 @@
 
     <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Feature</span><h2>Responsive polish and a message-entrance animation</h2><span class="entry-date">2026-09-17 (pending commit)</span></div>
+        <div class="card-head"><span class="tag">Feature</span><h2>Multi-language UI (English/Spanish/Hindi)</h2><span class="entry-date">2026-09-17 (pending commit)</span></div>
+        <div class="field"><span class="field-label">What</span><p><code>client/src/i18n.js</code> (new) exports a <code>STRINGS</code> dictionary for English, Spanish, and Hindi, plus a localStorage-persisted <code>initLanguage</code> and a <code>t(lang, key)</code> lookup. A language-picker chip row switches the composer placeholders, empty-state text, disclaimer, privacy panel, and pinned-panel labels live.</p></div>
+        <div class="field"><span class="field-label">Why</span><p>Continuing the remaining "partial" items. Deliberately scoped to UI chrome text only, not the prefill text that gets sent to the AI as a prompt. A caveman subagent review confirmed the fallback chain, translation completeness, and safe localStorage handling, and caught one real issue: the privacy/pinned dialog <code>aria-label</code>s stayed hardcoded English while the visible text was translated — both now use <code>t(lang, ...)</code>.</p></div>
+        <div class="field"><span class="field-label">Files</span><div class="files"><code>client/src/i18n.js</code><code>client/src/ChatPage.jsx</code><code>client/src/styles.css</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Subagent review only — caveman-reviewer: 79,171. Main implementation cost isn't exposed by any available tool.</p></div>
+      </div>
+    </div>
+
+    <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
+      <div class="card">
+        <div class="card-head"><span class="tag">Feature</span><h2>Responsive polish and a message-entrance animation</h2><span class="entry-date">2026-09-17 17:03</span></div>
         <div class="field"><span class="field-label">What</span><p>The pinned/privacy overlay panel goes full-width with tighter padding under the existing 640px mobile breakpoint. A subtle fade/slide-up entrance animation plays on each chat message, gated behind <code>prefers-reduced-motion: no-preference</code>.</p></div>
         <div class="field"><span class="field-label">Why</span><p>One of the remaining "partial" polish items. A caveman subagent review confirmed the animation only plays once per row on first mount (stable <code>key={row.id}</code> across typing/regenerate transitions), the reduced-motion gate isn't inverted, and it uses only compositor-only properties.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>client/src/styles.css</code></div></div>

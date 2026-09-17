@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { sendChat, generateImage, transcribeAudio, getQuote, searchNews, getHistory, analyzeFile, getPinned, togglePin, sendFeedback } from './api.js';
 import { speak, isSpeechSynthesisSupported, AudioRecorder, isRecordingSupported } from './speech.js';
 import { initTheme, applyTheme } from './theme.js';
+import { LANGUAGES, initLanguage, setStoredLanguage, t } from './i18n.js';
 
 const QUICK_ACTIONS = [
   { label: 'Summarize', prefill: 'Summarize the following:\n\n' },
@@ -34,11 +35,11 @@ const STARTER_PROMPTS = [
   { emoji: '📰', label: "Today's news", mode: 'news', text: 'technology' },
 ];
 
-const MODE_PLACEHOLDERS = {
-  chat: 'Message OmniAgent…',
-  image: 'Describe an image to generate…',
-  finance: 'Enter a stock symbol, e.g. AAPL…',
-  news: 'Search a news topic…',
+const MODE_PLACEHOLDER_KEYS = {
+  chat: 'placeholderChat',
+  image: 'placeholderImage',
+  finance: 'placeholderFinance',
+  news: 'placeholderNews',
 };
 
 // Caps how much chat history we keep in memory. Without this, a long-running
@@ -245,6 +246,7 @@ export default function ChatPage() {
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [theme, setTheme] = useState('light');
+  const [lang, setLang] = useState('en');
   const [copiedId, setCopiedId] = useState(null);
   const [sharedId, setSharedId] = useState(null);
   const [regeneratingId, setRegeneratingId] = useState(null);
@@ -261,7 +263,13 @@ export default function ChatPage() {
 
   useEffect(() => {
     setTheme(initTheme());
+    setLang(initLanguage());
   }, []);
+
+  function changeLanguage(code) {
+    setLang(code);
+    setStoredLanguage(code);
+  }
 
   useEffect(() => {
     getHistory()
@@ -612,8 +620,8 @@ export default function ChatPage() {
         <div className="chat-column">
           {rows.length === 0 && (
             <div className="chat-empty">
-              <p className="chat-empty-title">How can I help?</p>
-              <p className="chat-empty-sub">Type a message, pick a quick action below, or record your voice.</p>
+              <p className="chat-empty-title">{t(lang, 'emptyTitle')}</p>
+              <p className="chat-empty-sub">{t(lang, 'emptySub')}</p>
               <div className="starter-grid">
                 {STARTER_PROMPTS.map((s) => (
                   <button key={s.label} type="button" className="starter-card" onClick={() => chooseStarter(s)}>
@@ -848,7 +856,7 @@ export default function ChatPage() {
             <textarea
               ref={textareaRef}
               rows={1}
-              placeholder={MODE_PLACEHOLDERS[mode]}
+              placeholder={t(lang, MODE_PLACEHOLDER_KEYS[mode])}
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={(e) => {
@@ -881,54 +889,54 @@ export default function ChatPage() {
             </button>
           </form>
           <p className="disclaimer">
-            OmniAgent can make mistakes. Check important information before relying on it. ·{' '}
+            {t(lang, 'disclaimer')} ·{' '}
             <button type="button" className="disclaimer-link" onClick={() => setPrivacyOpen(true)}>
-              Privacy
+              {t(lang, 'privacyLink')}
             </button>
           </p>
+          <div className="chip-row language-row">
+            {LANGUAGES.map((l) => (
+              <button
+                key={l.code}
+                className={`chip mode-chip ${lang === l.code ? 'active' : ''}`}
+                type="button"
+                onClick={() => changeLanguage(l.code)}
+              >
+                {l.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
       {privacyOpen && (
-        <div className="pinned-overlay" role="dialog" aria-label="Privacy" onClick={() => setPrivacyOpen(false)}>
+        <div className="pinned-overlay" role="dialog" aria-label={t(lang, 'privacyTitle')} onClick={() => setPrivacyOpen(false)}>
           <div className="pinned-panel" onClick={(e) => e.stopPropagation()}>
             <div className="pinned-panel-head">
-              <h2>Privacy</h2>
+              <h2>{t(lang, 'privacyTitle')}</h2>
               <button className="mic-btn" type="button" onClick={() => setPrivacyOpen(false)} aria-label="Close privacy notice">
                 ×
               </button>
             </div>
-            <p className="chat-empty-sub">
-              OmniAgent has no sign-in — a session is created anonymously the first time you open the app. Your
-              messages, the answers you receive, and which backend/category handled each one are stored so your
-              conversation survives a page reload, and can be viewed or exported at any time.
-            </p>
-            <p className="chat-empty-sub">
-              A small number of durable facts (like your role or ongoing projects) may be extracted from your
-              conversation and reused in later sessions to make answers more relevant. The extracted fact is stored
-              only on this server, is never shown to anyone else, and is not used for advertising.
-            </p>
-            <p className="chat-empty-sub">
-              Prompts are sent to whichever AI backend is answering that message (a local model on this server, or a
-              cloud provider's API) purely to generate a response — never sold, and never used to build a profile
-              for advertising. Pinning, feedback, and export are entirely your choice and only affect your own data.
-            </p>
+            <p className="chat-empty-sub">{t(lang, 'privacyP1')}</p>
+            <p className="chat-empty-sub">{t(lang, 'privacyP2')}</p>
+            <p className="chat-empty-sub">{t(lang, 'privacyP3')}</p>
           </div>
         </div>
       )}
 
       {pinnedOpen && (
-        <div className="pinned-overlay" role="dialog" aria-label="Pinned answers" onClick={() => setPinnedOpen(false)}>
+        <div className="pinned-overlay" role="dialog" aria-label={t(lang, 'pinnedTitle')} onClick={() => setPinnedOpen(false)}>
           <div className="pinned-panel" onClick={(e) => e.stopPropagation()}>
             <div className="pinned-panel-head">
-              <h2>Pinned answers</h2>
+              <h2>{t(lang, 'pinnedTitle')}</h2>
               <button className="mic-btn" type="button" onClick={() => setPinnedOpen(false)} aria-label="Close pinned answers">
                 ×
               </button>
             </div>
-            {pinnedLoading && <p className="chat-empty-sub">Loading…</p>}
+            {pinnedLoading && <p className="chat-empty-sub">{t(lang, 'pinnedLoading')}</p>}
             {!pinnedLoading && pinnedItems.length === 0 && (
-              <p className="chat-empty-sub">Nothing pinned yet. Pin an answer with the pin icon on any response.</p>
+              <p className="chat-empty-sub">{t(lang, 'pinnedEmpty')}</p>
             )}
             {!pinnedLoading &&
               pinnedItems.map((item) => (
@@ -936,7 +944,7 @@ export default function ChatPage() {
                   <p className="pinned-item-prompt">{item.prompt}</p>
                   <p className="pinned-item-response">{item.response}</p>
                   <button className="chip" type="button" onClick={() => unpinFromPanel(item.id)}>
-                    Unpin
+                    {t(lang, 'unpin')}
                   </button>
                 </div>
               ))}
