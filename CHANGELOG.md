@@ -15,9 +15,17 @@ Newest entries at the top.
 
 ---
 
-## Feedback loop: thumbs up/down on answers
+## Disclaimer under the composer
 
 **Date:** 2026-09-17 (pending commit)
+**What:** A small muted line below the composer: "OmniAgent can make mistakes. Check important information before relying on it."
+**Why:** Continuing the feature list "biggest to smallest" — #21 on the list, a standard disclaimer every mainstream AI chat app carries. Pure static text and CSS, no logic -- a caveman subagent review confirmed nothing to flag; skipped the ecc security review for this one since there's no security surface in a static `<p>` tag.
+**Files:** `client/src/ChatPage.jsx`, `client/src/styles.css`.
+**Tokens:** Subagent review only — caveman-reviewer: 69,907. Main implementation cost isn't exposed by any available tool.
+
+## Feedback loop: thumbs up/down on answers
+
+**Date:** 2026-09-17 15:49
 **What:** `POST /queries/:id/feedback` (accepts exactly `'up'`, `'down'`, or `null` to clear, 400s on anything else) stores per-answer feedback in a new `feedback` column, following the same idempotent-migration and ownership-scoped-UPDATE pattern as the earlier pin feature. `ChatPage.jsx` adds thumbs-up/down buttons next to the pin button on each assistant message, with an optimistic toggle (clicking the already-active choice clears it).
 **Why:** Continuing the feature list "biggest to smallest" — #20 on the list. A caveman subagent review caught two real issues, both fixed: (1) the optimistic-update revert-on-failure restored the value captured at click time unconditionally, so a rapid up-then-down double-click racing two in-flight requests could have the older request's failure clobber the newer request's already-successful result -- fixed by only reverting when the row's current feedback still equals what that specific request optimistically set, so a newer change always wins; (2) the "ownership" test only checked a nonexistent query id, never a real cross-user bypass -- fixed by adding a second anonymous session and asserting it gets 404 (and doesn't mutate) when it tries to set feedback on the first session's actual query. An ecc security review confirmed the route is auth-gated, ownership-scoped, strictly input-validated, and covered by the existing rate limiter.
 **Files:** `server/db.js`, `server/chat.js`, `client/src/api.js`, `client/src/ChatPage.jsx`, `test/chat.test.js`.

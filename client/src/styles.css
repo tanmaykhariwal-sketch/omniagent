@@ -524,6 +524,13 @@ button {
   white-space: pre-wrap;
 }
 
+.disclaimer {
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 11px;
+  margin: 8px 0 0;
+}
+
 /* typing indicator — the one authored motion moment */
 .typing-dots {
   display: inline-flex;

@@ -876,6 +876,7 @@ export default function ChatPage() {
               <SendIcon />
             </button>
           </form>
+          <p className="disclaimer">OmniAgent can make mistakes. Check important information before relying on it.</p>
         </div>
       </div>
 

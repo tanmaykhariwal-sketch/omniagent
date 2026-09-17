@@ -285,7 +285,17 @@
 
     <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Feature + Fix</span><h2>Feedback loop: thumbs up/down on answers</h2><span class="entry-date">2026-09-17 (pending commit)</span></div>
+        <div class="card-head"><span class="tag">Feature</span><h2>Disclaimer under the composer</h2><span class="entry-date">2026-09-17 (pending commit)</span></div>
+        <div class="field"><span class="field-label">What</span><p>A small muted line below the composer: "OmniAgent can make mistakes. Check important information before relying on it."</p></div>
+        <div class="field"><span class="field-label">Why</span><p>Continuing the feature list "biggest to smallest" — #21 on the list, a standard disclaimer every mainstream AI chat app carries. Pure static text and CSS, no logic.</p></div>
+        <div class="field"><span class="field-label">Files</span><div class="files"><code>client/src/ChatPage.jsx</code><code>client/src/styles.css</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Subagent review only — caveman-reviewer: 69,907. Main implementation cost isn't exposed by any available tool.</p></div>
+      </div>
+    </div>
+
+    <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
+      <div class="card">
+        <div class="card-head"><span class="tag">Feature + Fix</span><h2>Feedback loop: thumbs up/down on answers</h2><span class="entry-date">2026-09-17 15:49</span></div>
         <div class="field"><span class="field-label">What</span><p><code>POST /queries/:id/feedback</code> (accepts exactly <code>'up'</code>, <code>'down'</code>, or <code>null</code>) stores per-answer feedback in a new <code>feedback</code> column, mirroring the earlier pin feature's migration and ownership pattern. <code>ChatPage.jsx</code> adds thumbs-up/down buttons with an optimistic toggle.</p></div>
         <div class="field"><span class="field-label">Why</span><p>Continuing the feature list "biggest to smallest" — #20 on the list. A caveman subagent review caught two real issues, both fixed: the optimistic-update revert-on-failure could clobber a newer, already-successful request from a rapid double-click (fixed with a compare-before-revert guard), and the "ownership" test only checked a nonexistent id, never a real cross-user bypass (fixed by adding a second session and asserting 404). An ecc security review confirmed the route is auth-gated, ownership-scoped, and strictly input-validated.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>server/db.js</code><code>server/chat.js</code><code>client/src/api.js</code><code>client/src/ChatPage.jsx</code><code>test/chat.test.js</code></div></div>
