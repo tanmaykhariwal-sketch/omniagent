@@ -245,6 +245,7 @@ export default function ChatPage() {
   const [copiedId, setCopiedId] = useState(null);
   const [sharedId, setSharedId] = useState(null);
   const [regeneratingId, setRegeneratingId] = useState(null);
+  const [privacyOpen, setPrivacyOpen] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [persona, setPersona] = useState(null);
   const [pinnedOpen, setPinnedOpen] = useState(false);
@@ -876,9 +877,42 @@ export default function ChatPage() {
               <SendIcon />
             </button>
           </form>
-          <p className="disclaimer">OmniAgent can make mistakes. Check important information before relying on it.</p>
+          <p className="disclaimer">
+            OmniAgent can make mistakes. Check important information before relying on it. ·{' '}
+            <button type="button" className="disclaimer-link" onClick={() => setPrivacyOpen(true)}>
+              Privacy
+            </button>
+          </p>
         </div>
       </div>
+
+      {privacyOpen && (
+        <div className="pinned-overlay" role="dialog" aria-label="Privacy" onClick={() => setPrivacyOpen(false)}>
+          <div className="pinned-panel" onClick={(e) => e.stopPropagation()}>
+            <div className="pinned-panel-head">
+              <h2>Privacy</h2>
+              <button className="mic-btn" type="button" onClick={() => setPrivacyOpen(false)} aria-label="Close privacy notice">
+                ×
+              </button>
+            </div>
+            <p className="chat-empty-sub">
+              OmniAgent has no sign-in — a session is created anonymously the first time you open the app. Your
+              messages, the answers you receive, and which backend/category handled each one are stored so your
+              conversation survives a page reload, and can be viewed or exported at any time.
+            </p>
+            <p className="chat-empty-sub">
+              A small number of durable facts (like your role or ongoing projects) may be extracted from your
+              conversation and reused in later sessions to make answers more relevant. The extracted fact is stored
+              only on this server, is never shown to anyone else, and is not used for advertising.
+            </p>
+            <p className="chat-empty-sub">
+              Prompts are sent to whichever AI backend is answering that message (a local model on this server, or a
+              cloud provider's API) purely to generate a response — never sold, and never used to build a profile
+              for advertising. Pinning, feedback, and export are entirely your choice and only affect your own data.
+            </p>
+          </div>
+        </div>
+      )}
 
       {pinnedOpen && (
         <div className="pinned-overlay" role="dialog" aria-label="Pinned answers" onClick={() => setPinnedOpen(false)}>

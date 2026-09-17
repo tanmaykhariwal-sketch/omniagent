@@ -531,6 +531,20 @@ button {
   margin: 8px 0 0;
 }
 
+.disclaimer-link {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--text-faint);
+  font-size: 11px;
+  text-decoration: underline;
+  cursor: pointer;
+}
+
+.disclaimer-link:hover {
+  color: var(--accent);
+}
+
 /* typing indicator — the one authored motion moment */
 .typing-dots {
   display: inline-flex;

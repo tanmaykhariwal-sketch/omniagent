@@ -15,9 +15,17 @@ Newest entries at the top.
 
 ---
 
-## Disclaimer under the composer
+## Privacy notice panel
 
 **Date:** 2026-09-17 (pending commit)
+**What:** A "Privacy" link in the disclaimer line opens an overlay (reusing the existing pinned-answers panel styling) with plain-language text on what's stored (conversation history, extracted facts, pin/feedback state), why (so the conversation survives a reload and answers stay relevant), and what isn't done with it (no ads, no selling, no sharing beyond the AI backend actually generating that answer).
+**Why:** Continuing the feature list "biggest to smallest," one of the remaining no-credential items after the user chose to skip #26 Email integration (no email-sending provider configured) rather than build against a provider they'd have to sign up for and hand me a key for. A caveman subagent review confirmed the overlay's a11y pattern faithfully copies the existing pinned-answers overlay (same pre-existing lack of Escape/focus-trap handling, not a new regression), and caught one wording accuracy issue: the notice said extracted facts "stay on this server," but the extraction call itself is routed through the same cloud-first adapter pool as regular chat (`server/router.js`), so the *request* can leave the server even though the resulting fact is stored locally -- reworded to "the extracted fact is stored only on this server" to be precise about what actually stays local.
+**Files:** `client/src/ChatPage.jsx`, `client/src/styles.css`.
+**Tokens:** Subagent review only — caveman-reviewer: 78,959. Main implementation cost isn't exposed by any available tool.
+
+## Disclaimer under the composer
+
+**Date:** 2026-09-17 15:50
 **What:** A small muted line below the composer: "OmniAgent can make mistakes. Check important information before relying on it."
 **Why:** Continuing the feature list "biggest to smallest" — #21 on the list, a standard disclaimer every mainstream AI chat app carries. Pure static text and CSS, no logic -- a caveman subagent review confirmed nothing to flag; skipped the ecc security review for this one since there's no security surface in a static `<p>` tag.
 **Files:** `client/src/ChatPage.jsx`, `client/src/styles.css`.
