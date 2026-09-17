@@ -285,7 +285,17 @@
 
     <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Feature + Fix</span><h2>Personal dashboard: pin and revisit answers</h2><span class="entry-date">2026-09-17 (pending commit)</span></div>
+        <div class="card-head"><span class="tag">Feature</span><h2>Share options for any answer</h2><span class="entry-date">2026-09-17 (pending commit)</span></div>
+        <div class="field"><span class="field-label">What</span><p>A Share button next to each assistant message's copy/read-aloud/pin buttons calls <code>navigator.share({ text })</code> (native OS share sheet on mobile/supporting browsers) and falls back to <code>navigator.clipboard.writeText(text)</code> with a brief "Copied for sharing!" confirmation when the Web Share API isn't available.</p></div>
+        <div class="field"><span class="field-label">Why</span><p>Continuing the feature list "biggest to smallest" — #2 on the list. A caveman subagent review caught one real issue before commit: the <code>navigator.share</code> rejection handler treated a user cancelling the OS share sheet the same as a real failure, silently falling through to a clipboard copy the user never asked for. Fixed by checking for <code>AbortError</code> and returning early on a genuine cancel. An ecc security review confirmed no untrusted data is involved — only the AI's own already-rendered response text is passed.</p></div>
+        <div class="field"><span class="field-label">Files</span><div class="files"><code>client/src/ChatPage.jsx</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Subagent reviews only — caveman-reviewer: 72,456; ecc security-reviewer: 70,978. Main implementation cost isn't exposed by any available tool.</p></div>
+      </div>
+    </div>
+
+    <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
+      <div class="card">
+        <div class="card-head"><span class="tag">Feature + Fix</span><h2>Personal dashboard: pin and revisit answers</h2><span class="entry-date">2026-09-17 15:32</span></div>
         <div class="field"><span class="field-label">What</span><p><code>POST /queries/:id/pin</code> and <code>GET /pinned</code> (capped at 50 rows) let a user pin/unpin any past answer and view all pinned answers in one place; <code>/chat</code> now returns the new row's id as <code>queryId</code>, and <code>/history</code> returns <code>id</code>/<code>pinned</code>. <code>ChatPage.jsx</code> adds a pin toggle next to each answer's copy/read-aloud buttons and a header button opening an overlay panel.</p></div>
         <div class="field"><span class="field-label">Why</span><p>Continuing the feature list "biggest to smallest" — #18 on the list. A caveman subagent review and an ecc security-reviewer subagent review each caught one real issue, both fixed: the new pin routes weren't in any rate-limiter group, and <code>GET /pinned</code> had no row cap unlike <code>/history</code>'s existing limit. Also added a boolean type check on the pin request body.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>server/db.js</code><code>server/chat.js</code><code>server/index.js</code><code>client/src/ChatPage.jsx</code><code>client/src/api.js</code><code>client/src/styles.css</code><code>client/vite.config.js</code><code>test/chat.test.js</code></div></div>

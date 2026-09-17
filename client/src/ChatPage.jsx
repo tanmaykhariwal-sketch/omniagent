@@ -112,6 +112,17 @@ function CheckIcon() {
   );
 }
 
+function ShareIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12.5" cy="3.5" r="1.8" />
+      <circle cx="3.5" cy="8" r="1.8" />
+      <circle cx="12.5" cy="12.5" r="1.8" />
+      <path d="M5.1 7.1l5.8-3.2M5.1 8.9l5.8 3.2" />
+    </svg>
+  );
+}
+
 function PinIcon({ filled }) {
   return (
     <svg viewBox="0 0 16 16" width="13" height="13" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
@@ -198,6 +209,7 @@ export default function ChatPage() {
   const [transcribing, setTranscribing] = useState(false);
   const [theme, setTheme] = useState('light');
   const [copiedId, setCopiedId] = useState(null);
+  const [sharedId, setSharedId] = useState(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [persona, setPersona] = useState(null);
   const [pinnedOpen, setPinnedOpen] = useState(false);
@@ -251,6 +263,26 @@ export default function ChatPage() {
       setTimeout(() => setCopiedId((current) => (current === id ? null : current)), 1500);
     } catch {
       // clipboard access denied/unsupported -- text is still selectable manually
+    }
+  }
+
+  async function shareText(id, text) {
+    if (navigator.share) {
+      try {
+        await navigator.share({ text });
+        return;
+      } catch (err) {
+        // the user cancelling the OS share sheet is not a failure -- don't
+        // fall through to a clipboard copy they didn't ask for
+        if (err.name === 'AbortError') return;
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(text);
+      setSharedId(id);
+      setTimeout(() => setSharedId((current) => (current === id ? null : current)), 1500);
+    } catch {
+      // clipboard access denied/unsupported -- nothing more we can do
     }
   }
 
@@ -559,6 +591,15 @@ export default function ChatPage() {
                           <SpeakerIcon />
                         </button>
                       )}
+                      <button
+                        className="speak-btn"
+                        type="button"
+                        onClick={() => shareText(row.id, row.text)}
+                        title={sharedId === row.id ? 'Copied for sharing!' : 'Share'}
+                        aria-label={sharedId === row.id ? 'Copied for sharing' : 'Share this answer'}
+                      >
+                        {sharedId === row.id ? <CheckIcon /> : <ShareIcon />}
+                      </button>
                       {row.queryId && (
                         <button
                           className={`speak-btn ${row.pinned ? 'active' : ''}`}

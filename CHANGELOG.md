@@ -15,9 +15,17 @@ Newest entries at the top.
 
 ---
 
-## Personal dashboard: pin and revisit answers
+## Share options for any answer
 
 **Date:** 2026-09-17 (pending commit)
+**What:** A Share button next to each assistant message's copy/read-aloud/pin buttons calls `navigator.share({ text })` (native OS share sheet on mobile/supporting browsers) and falls back to `navigator.clipboard.writeText(text)` with a brief "Copied for sharing!" confirmation when the Web Share API isn't available.
+**Why:** Continuing the feature list "biggest to smallest" — #2 on the list. A caveman subagent review caught one real issue before commit: the `navigator.share` rejection handler treated a user cancelling the OS share sheet the same as a real failure, silently falling through to a clipboard copy the user never asked for. Fixed by checking `err.name === 'AbortError'` and returning early on a genuine cancel, only falling back to clipboard on an actual share failure. An ecc security review confirmed no untrusted data is involved — only the AI's own already-rendered response text is passed, no `url`/`title` fields, no auth/session data in scope.
+**Files:** `client/src/ChatPage.jsx`.
+**Tokens:** Subagent reviews only — caveman-reviewer: 72,456; ecc security-reviewer: 70,978. Main implementation cost isn't exposed by any available tool.
+
+## Personal dashboard: pin and revisit answers
+
+**Date:** 2026-09-17 15:32
 **What:** `POST /queries/:id/pin` and `GET /pinned` (capped at 50 rows, same limit as `/history`) let a user pin/unpin any past answer and view all pinned answers in one place; `/chat` now returns the new row's id as `queryId` so the client can address it, and `/history` returns `id`/`pinned` alongside the existing fields. `ChatPage.jsx` adds a pin toggle next to each answer's copy/read-aloud buttons and a header button opening an overlay panel listing pinned answers.
 **Why:** Continuing the feature-parity list "biggest to smallest" — #18 on the list (pin/favorite answers, view them in one place). A caveman subagent review and an ecc security-reviewer subagent review (per standing instruction to run both before committing) each caught one real issue, both fixed: the new pin routes weren't in any rate-limiter group unlike every other mutating route (`/chat`, `/history`, `/finance`, `/news`), and `GET /pinned` had no row cap unlike `/history`'s existing `MAX_HISTORY` limit — a user with thousands of pinned rows would get an unbounded response every time they opened the panel. Also added a `typeof === 'boolean'` check on the pin request body, since it was silently coercing any truthy value.
 **Files:** `server/db.js` (new `pinned` column, idempotent migration), `server/chat.js`, `server/index.js`, `client/src/ChatPage.jsx`, `client/src/api.js`, `client/src/styles.css`, `client/vite.config.js`, `test/chat.test.js`.
