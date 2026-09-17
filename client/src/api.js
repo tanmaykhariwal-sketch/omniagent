@@ -69,3 +69,12 @@ export function togglePin(queryId, pinned) {
     body: JSON.stringify({ pinned }),
   }).then(handle);
 }
+
+export function sendFeedback(queryId, feedback) {
+  return fetch(`/queries/${queryId}/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    credentials: 'include',
+    body: JSON.stringify({ feedback }),
+  }).then(handle);
+}

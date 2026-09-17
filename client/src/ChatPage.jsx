@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { sendChat, generateImage, transcribeAudio, getQuote, searchNews, getHistory, analyzeFile, getPinned, togglePin } from './api.js';
+import { sendChat, generateImage, transcribeAudio, getQuote, searchNews, getHistory, analyzeFile, getPinned, togglePin, sendFeedback } from './api.js';
 import { speak, isSpeechSynthesisSupported, AudioRecorder, isRecordingSupported } from './speech.js';
 import { initTheme, applyTheme } from './theme.js';
 
@@ -141,6 +141,22 @@ function ShareIcon() {
   );
 }
 
+function ThumbsUpIcon({ filled }) {
+  return (
+    <svg viewBox="0 0 16 16" width="13" height="13" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2.5 7h2.2v6.5H2.5zM4.7 7l2.6-4.8a1 1 0 0 1 1.8.5v2.8h3.3a1.2 1.2 0 0 1 1.15 1.6l-1.5 4.9a1.2 1.2 0 0 1-1.15.9H4.7z" />
+    </svg>
+  );
+}
+
+function ThumbsDownIcon({ filled }) {
+  return (
+    <svg viewBox="0 0 16 16" width="13" height="13" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.3" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M2.5 9h2.2V2.5H2.5zM4.7 9l2.6 4.8a1 1 0 0 0 1.8-.5v-2.8h3.3a1.2 1.2 0 0 0 1.15-1.6l-1.5-4.9A1.2 1.2 0 0 0 10.85 3H4.7z" />
+    </svg>
+  );
+}
+
 function PinIcon({ filled }) {
   return (
     <svg viewBox="0 0 16 16" width="13" height="13" fill={filled ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
@@ -249,7 +265,15 @@ export default function ChatPage() {
         if (history.length === 0) return;
         const restored = history.flatMap((h) => [
           { id: crypto.randomUUID(), role: 'you', text: h.prompt },
-          { id: crypto.randomUUID(), role: 'omni', text: h.response, queryId: h.id, pinned: !!h.pinned, prompt: h.prompt },
+          {
+            id: crypto.randomUUID(),
+            role: 'omni',
+            text: h.response,
+            queryId: h.id,
+            pinned: !!h.pinned,
+            feedback: h.feedback || null,
+            prompt: h.prompt,
+          },
         ]);
         setRows((r) => (r.length === 0 ? restored : r));
       })
@@ -311,7 +335,7 @@ export default function ChatPage() {
     try {
       const { response, suggestions, queryId } = await sendChat(row.prompt, persona);
       setRows((r) =>
-        r.map((x) => (x.id === row.id ? { ...x, text: response, suggestions, queryId, pinned: false } : x))
+        r.map((x) => (x.id === row.id ? { ...x, text: response, suggestions, queryId, pinned: false, feedback: null } : x))
       );
     } catch (err) {
       setRows((r) =>
@@ -342,6 +366,21 @@ export default function ChatPage() {
   function togglePersona(id) {
     setPersona((p) => (p === id ? null : id));
     textareaRef.current?.focus();
+  }
+
+  async function handleFeedback(row, value) {
+    if (!row.queryId) return;
+    const previous = row.feedback;
+    const next = previous === value ? null : value;
+    setRows((r) => r.map((x) => (x.id === row.id ? { ...x, feedback: next } : x)));
+    try {
+      await sendFeedback(row.queryId, next);
+    } catch {
+      // only revert if nothing newer has landed in the meantime -- a rapid
+      // second click racing this failed request must win, not get clobbered
+      // back to a value from before either click happened
+      setRows((r) => r.map((x) => (x.id === row.id && x.feedback === next ? { ...x, feedback: previous } : x)));
+    }
   }
 
   async function handleTogglePin(row) {
@@ -464,7 +503,7 @@ export default function ChatPage() {
       setRows((r) =>
         r.map((row) =>
           row.id === `${id}-status`
-            ? { id: row.id, role: 'omni', text: response, suggestions, queryId, pinned: false, prompt }
+            ? { id: row.id, role: 'omni', text: response, suggestions, queryId, pinned: false, feedback: null, prompt }
             : row
         )
       );
@@ -695,6 +734,28 @@ export default function ChatPage() {
                           aria-label={row.pinned ? 'Unpin this answer' : 'Pin this answer'}
                         >
                           <PinIcon filled={row.pinned} />
+                        </button>
+                      )}
+                      {row.queryId && (
+                        <button
+                          className={`speak-btn ${row.feedback === 'up' ? 'active' : ''}`}
+                          type="button"
+                          onClick={() => handleFeedback(row, 'up')}
+                          title="Good answer"
+                          aria-label="Mark as a good answer"
+                        >
+                          <ThumbsUpIcon filled={row.feedback === 'up'} />
+                        </button>
+                      )}
+                      {row.queryId && (
+                        <button
+                          className={`speak-btn ${row.feedback === 'down' ? 'active' : ''}`}
+                          type="button"
+                          onClick={() => handleFeedback(row, 'down')}
+                          title="Bad answer"
+                          aria-label="Mark as a bad answer"
+                        >
+                          <ThumbsDownIcon filled={row.feedback === 'down'} />
                         </button>
                       )}
                       {row.prompt && index === rows.length - 1 && (

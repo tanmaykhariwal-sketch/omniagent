@@ -15,7 +15,7 @@ const MAX_HISTORY = 50;
 chatRouter.get('/history', requireAuth, (req, res) => {
   const db = getDb();
   const rows = db
-    .prepare('SELECT id, prompt, response, created_at, pinned FROM queries WHERE user_id = ? ORDER BY created_at ASC LIMIT ?')
+    .prepare('SELECT id, prompt, response, created_at, pinned, feedback FROM queries WHERE user_id = ? ORDER BY created_at ASC LIMIT ?')
     .all(req.session.userId, MAX_HISTORY);
   res.json({ history: rows });
 });
@@ -41,6 +41,25 @@ chatRouter.post('/queries/:id/pin', requireAuth, (req, res) => {
   const result = db
     .prepare('UPDATE queries SET pinned = ? WHERE id = ? AND user_id = ?')
     .run(pinned, id, req.session.userId);
+  if (result.changes === 0) {
+    return res.status(404).json({ error: 'query not found' });
+  }
+  res.json({ ok: true });
+});
+
+chatRouter.post('/queries/:id/feedback', requireAuth, (req, res) => {
+  const id = Number(req.params.id);
+  if (!Number.isInteger(id)) {
+    return res.status(400).json({ error: 'invalid query id' });
+  }
+  const feedback = req.body && req.body.feedback;
+  if (feedback !== 'up' && feedback !== 'down' && feedback !== null) {
+    return res.status(400).json({ error: "feedback must be 'up', 'down', or null" });
+  }
+  const db = getDb();
+  const result = db
+    .prepare('UPDATE queries SET feedback = ? WHERE id = ? AND user_id = ?')
+    .run(feedback, id, req.session.userId);
   if (result.changes === 0) {
     return res.status(404).json({ error: 'query not found' });
   }

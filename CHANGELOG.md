@@ -15,9 +15,17 @@ Newest entries at the top.
 
 ---
 
-## Export a conversation as Markdown
+## Feedback loop: thumbs up/down on answers
 
 **Date:** 2026-09-17 (pending commit)
+**What:** `POST /queries/:id/feedback` (accepts exactly `'up'`, `'down'`, or `null` to clear, 400s on anything else) stores per-answer feedback in a new `feedback` column, following the same idempotent-migration and ownership-scoped-UPDATE pattern as the earlier pin feature. `ChatPage.jsx` adds thumbs-up/down buttons next to the pin button on each assistant message, with an optimistic toggle (clicking the already-active choice clears it).
+**Why:** Continuing the feature list "biggest to smallest" — #20 on the list. A caveman subagent review caught two real issues, both fixed: (1) the optimistic-update revert-on-failure restored the value captured at click time unconditionally, so a rapid up-then-down double-click racing two in-flight requests could have the older request's failure clobber the newer request's already-successful result -- fixed by only reverting when the row's current feedback still equals what that specific request optimistically set, so a newer change always wins; (2) the "ownership" test only checked a nonexistent query id, never a real cross-user bypass -- fixed by adding a second anonymous session and asserting it gets 404 (and doesn't mutate) when it tries to set feedback on the first session's actual query. An ecc security review confirmed the route is auth-gated, ownership-scoped, strictly input-validated, and covered by the existing rate limiter.
+**Files:** `server/db.js`, `server/chat.js`, `client/src/api.js`, `client/src/ChatPage.jsx`, `test/chat.test.js`.
+**Tokens:** Subagent reviews only — caveman-reviewer: 79,277; ecc security-reviewer: 75,303. Main implementation cost isn't exposed by any available tool.
+
+## Export a conversation as Markdown
+
+**Date:** 2026-09-17 15:43
 **What:** An Export button in the header downloads the current conversation as a `.md` file (`rowToMarkdown` maps each row type -- you/omni/error/image/quote/news -- to a markdown line or block, joined under a header with the export timestamp), built entirely client-side via `Blob` + object URL + a programmatic anchor click, no backend route involved.
 **Why:** Continuing the feature list "biggest to smallest" — #11 on the list. A caveman subagent review caught one minor issue, fixed: the download anchor was clicked without being appended to the DOM first, a known non-standard-compliant pattern that some browsers/WebViews don't reliably dispatch -- fixed by appending it before `.click()` and removing it after. An ecc security review confirmed the filename and content-type are fixed literals with no attacker-controlled input, and raw AI/user text embedded unescaped in the markdown is a non-issue since this is a personal local export file, not rendered as HTML.
 **Files:** `client/src/ChatPage.jsx`.

@@ -171,6 +171,93 @@ test('pinning: a query can be pinned, appears in /pinned, then unpinned', async 
   delete process.env.LOCAL_GENERAL_MODEL;
 });
 
+test('feedback: a query can be marked up/down, cleared, and rejects invalid values', async () => {
+  const http = require('node:http');
+  const TEST_DB_5 = path.join(__dirname, 'test-chat-feedback.sqlite');
+  process.env.DB_PATH = TEST_DB_5;
+
+  const fakeOllama = http.createServer((req, res) => {
+    res.setHeader('Content-Type', 'application/json');
+    res.end(JSON.stringify({ message: { content: 'an answer' } }));
+  });
+  await new Promise((resolve) => fakeOllama.listen(0, resolve));
+  process.env.OLLAMA_BASE_URL = `http://localhost:${fakeOllama.address().port}`;
+  process.env.LOCAL_GENERAL_MODEL = 'qwen2.5:7b';
+  process.env.LOCAL_CODING_MODEL = '';
+
+  const { createApp } = require('../server/index.js');
+  const { closeDb } = require('../server/db.js');
+  const app = createApp();
+  const server = app.listen(0);
+  const base = `http://localhost:${server.address().port}`;
+
+  const chatRes = await fetch(`${base}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: 'rate me' }),
+  });
+  const cookie = chatRes.headers.get('set-cookie');
+  const { queryId } = await chatRes.json();
+
+  const badRes = await fetch(`${base}/queries/${queryId}/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    body: JSON.stringify({ feedback: 'sideways' }),
+  });
+  assert.strictEqual(badRes.status, 400);
+
+  const upRes = await fetch(`${base}/queries/${queryId}/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    body: JSON.stringify({ feedback: 'up' }),
+  });
+  assert.strictEqual(upRes.status, 200);
+
+  const historyRes = await fetch(`${base}/history`, { headers: { Cookie: cookie } });
+  const { history } = await historyRes.json();
+  assert.strictEqual(history[0].feedback, 'up');
+
+  await fetch(`${base}/queries/${queryId}/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    body: JSON.stringify({ feedback: null }),
+  });
+  const afterClear = await (await fetch(`${base}/history`, { headers: { Cookie: cookie } })).json();
+  assert.strictEqual(afterClear.history[0].feedback, null);
+
+  const wrongOwnerRes = await fetch(`${base}/queries/999999/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    body: JSON.stringify({ feedback: 'down' }),
+  });
+  assert.strictEqual(wrongOwnerRes.status, 404);
+
+  // a real ownership bypass, not just a nonexistent id: a second, distinct
+  // anonymous session must not be able to set feedback on the first
+  // session's actual query
+  const otherSessionRes = await fetch(`${base}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: 'a different user' }),
+  });
+  const otherCookie = otherSessionRes.headers.get('set-cookie');
+  const crossOwnerRes = await fetch(`${base}/queries/${queryId}/feedback`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Cookie: otherCookie },
+    body: JSON.stringify({ feedback: 'up' }),
+  });
+  assert.strictEqual(crossOwnerRes.status, 404);
+  const unaffected = await (await fetch(`${base}/history`, { headers: { Cookie: cookie } })).json();
+  assert.strictEqual(unaffected.history[0].feedback, null);
+
+  server.close();
+  fakeOllama.close();
+  closeDb();
+  fs.rmSync(TEST_DB_5, { force: true, maxRetries: 5, retryDelay: 100 });
+  delete process.env.OLLAMA_BASE_URL;
+  delete process.env.LOCAL_GENERAL_MODEL;
+});
+
 test('a known persona is folded into the system prompt; an unknown one is ignored', async () => {
   const http = require('node:http');
   const TEST_DB_3 = path.join(__dirname, 'test-chat-persona.sqlite');

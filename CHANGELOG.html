@@ -285,7 +285,17 @@
 
     <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Feature</span><h2>Export a conversation as Markdown</h2><span class="entry-date">2026-09-17 (pending commit)</span></div>
+        <div class="card-head"><span class="tag">Feature + Fix</span><h2>Feedback loop: thumbs up/down on answers</h2><span class="entry-date">2026-09-17 (pending commit)</span></div>
+        <div class="field"><span class="field-label">What</span><p><code>POST /queries/:id/feedback</code> (accepts exactly <code>'up'</code>, <code>'down'</code>, or <code>null</code>) stores per-answer feedback in a new <code>feedback</code> column, mirroring the earlier pin feature's migration and ownership pattern. <code>ChatPage.jsx</code> adds thumbs-up/down buttons with an optimistic toggle.</p></div>
+        <div class="field"><span class="field-label">Why</span><p>Continuing the feature list "biggest to smallest" — #20 on the list. A caveman subagent review caught two real issues, both fixed: the optimistic-update revert-on-failure could clobber a newer, already-successful request from a rapid double-click (fixed with a compare-before-revert guard), and the "ownership" test only checked a nonexistent id, never a real cross-user bypass (fixed by adding a second session and asserting 404). An ecc security review confirmed the route is auth-gated, ownership-scoped, and strictly input-validated.</p></div>
+        <div class="field"><span class="field-label">Files</span><div class="files"><code>server/db.js</code><code>server/chat.js</code><code>client/src/api.js</code><code>client/src/ChatPage.jsx</code><code>test/chat.test.js</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Subagent reviews only — caveman-reviewer: 79,277; ecc security-reviewer: 75,303. Main implementation cost isn't exposed by any available tool.</p></div>
+      </div>
+    </div>
+
+    <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
+      <div class="card">
+        <div class="card-head"><span class="tag">Feature</span><h2>Export a conversation as Markdown</h2><span class="entry-date">2026-09-17 15:43</span></div>
         <div class="field"><span class="field-label">What</span><p>An Export button in the header downloads the current conversation as a <code>.md</code> file, built entirely client-side via <code>Blob</code> + object URL + a programmatic anchor click, no backend route involved.</p></div>
         <div class="field"><span class="field-label">Why</span><p>Continuing the feature list "biggest to smallest" — #11 on the list. A caveman subagent review caught one minor issue, fixed: the download anchor was clicked without being appended to the DOM first, a known non-standard-compliant pattern. An ecc security review confirmed the filename/content-type are fixed literals with no attacker-controlled input.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>client/src/ChatPage.jsx</code></div></div>

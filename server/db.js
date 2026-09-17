@@ -44,6 +44,11 @@ function getDb() {
   } catch (err) {
     if (!/duplicate column/i.test(err.message)) throw err;
   }
+  try {
+    dbInstance.exec('ALTER TABLE queries ADD COLUMN feedback TEXT');
+  } catch (err) {
+    if (!/duplicate column/i.test(err.message)) throw err;
+  }
   return dbInstance;
 }
 
