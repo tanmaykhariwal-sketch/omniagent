@@ -258,6 +258,60 @@ test('feedback: a query can be marked up/down, cleared, and rejects invalid valu
   delete process.env.LOCAL_GENERAL_MODEL;
 });
 
+test('webSearch: true grounds the answer in live search results and returns sources', async () => {
+  const http = require('node:http');
+  const TEST_DB_6 = path.join(__dirname, 'test-chat-websearch.sqlite');
+  process.env.DB_PATH = TEST_DB_6;
+
+  const systemContents = [];
+  const fakeOllama = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', () => {
+      systemContents.push(JSON.parse(body).messages[0].content);
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ message: { content: 'grounded answer' } }));
+    });
+  });
+  await new Promise((resolve) => fakeOllama.listen(0, resolve));
+  process.env.OLLAMA_BASE_URL = `http://localhost:${fakeOllama.address().port}`;
+  process.env.LOCAL_GENERAL_MODEL = 'qwen2.5:7b';
+  process.env.LOCAL_CODING_MODEL = '';
+
+  const fakeSearch = http.createServer((req, res) => {
+    res.setHeader('Content-Type', 'text/html');
+    res.end(
+      `<div class="result results_links results_links_deep web-result"><div class="links_main links_deep result__body"><h2 class="result__title"><a rel="nofollow" class="result__a" href="https://example.com/x">Example result</a></h2><a class="result__snippet" href="https://example.com/x">An example snippet.</a></div></div>`
+    );
+  });
+  await new Promise((resolve) => fakeSearch.listen(0, resolve));
+  process.env.WEB_SEARCH_BASE_URL = `http://localhost:${fakeSearch.address().port}`;
+
+  const { createApp } = require('../server/index.js');
+  const { closeDb } = require('../server/db.js');
+  const app = createApp();
+  const server = app.listen(0);
+  const base = `http://localhost:${server.address().port}`;
+
+  const chatRes = await fetch(`${base}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: 'what is the news today', webSearch: true }),
+  });
+  const { sources } = await chatRes.json();
+  assert.ok(systemContents.some((c) => c.includes('Example result') && c.includes('An example snippet.')));
+  assert.deepStrictEqual(sources, [{ title: 'Example result', snippet: 'An example snippet.', link: 'https://example.com/x' }]);
+
+  server.close();
+  fakeOllama.close();
+  fakeSearch.close();
+  closeDb();
+  fs.rmSync(TEST_DB_6, { force: true, maxRetries: 5, retryDelay: 100 });
+  delete process.env.OLLAMA_BASE_URL;
+  delete process.env.LOCAL_GENERAL_MODEL;
+  delete process.env.WEB_SEARCH_BASE_URL;
+});
+
 test('a known persona is folded into the system prompt; an unknown one is ignored', async () => {
   const http = require('node:http');
   const TEST_DB_3 = path.join(__dirname, 'test-chat-persona.sqlite');

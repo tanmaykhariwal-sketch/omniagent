@@ -524,6 +524,20 @@ button {
   white-space: pre-wrap;
 }
 
+.sources-list {
+  margin: 8px 0 0;
+  padding-left: 18px;
+  font-size: 12.5px;
+}
+
+.sources-list li {
+  margin-bottom: 2px;
+}
+
+.sources-list a {
+  color: var(--accent);
+}
+
 .disclaimer {
   text-align: center;
   color: var(--text-faint);

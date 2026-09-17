@@ -10,12 +10,12 @@ export function getHistory() {
   return fetch('/history', { credentials: 'include' }).then(handle);
 }
 
-export function sendChat(prompt, persona) {
+export function sendChat(prompt, persona, webSearch) {
   return fetch('/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ prompt, persona: persona || undefined }),
+    body: JSON.stringify({ prompt, persona: persona || undefined, webSearch: webSearch || undefined }),
   }).then(handle);
 }
 

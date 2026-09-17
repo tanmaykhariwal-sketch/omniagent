@@ -253,6 +253,7 @@ export default function ChatPage() {
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [persona, setPersona] = useState(null);
+  const [webSearchOn, setWebSearchOn] = useState(false);
   const [pinnedOpen, setPinnedOpen] = useState(false);
   const [pinnedItems, setPinnedItems] = useState([]);
   const [pinnedLoading, setPinnedLoading] = useState(false);
@@ -345,9 +346,13 @@ export default function ChatPage() {
     if (!row.prompt || sending || regeneratingId) return;
     setRegeneratingId(row.id);
     try {
-      const { response, suggestions, queryId } = await sendChat(row.prompt, persona);
+      const { response, suggestions, queryId, sources } = await sendChat(row.prompt, persona, webSearchOn);
       setRows((r) =>
-        r.map((x) => (x.id === row.id ? { ...x, text: response, suggestions, queryId, pinned: false, feedback: null } : x))
+        r.map((x) =>
+          x.id === row.id
+            ? { ...x, text: response, suggestions, queryId, pinned: false, feedback: null, sources }
+            : x
+        )
       );
     } catch (err) {
       setRows((r) =>
@@ -377,6 +382,11 @@ export default function ChatPage() {
 
   function togglePersona(id) {
     setPersona((p) => (p === id ? null : id));
+    textareaRef.current?.focus();
+  }
+
+  function toggleWebSearch() {
+    setWebSearchOn((w) => !w);
     textareaRef.current?.focus();
   }
 
@@ -511,11 +521,11 @@ export default function ChatPage() {
     setRows((r) => appendRows(r, { id, role: 'you', text: prompt }, { id: `${id}-status`, role: 'typing' }));
 
     try {
-      const { response, suggestions, queryId } = await sendChat(prompt, persona);
+      const { response, suggestions, queryId, sources } = await sendChat(prompt, persona, webSearchOn);
       setRows((r) =>
         r.map((row) =>
           row.id === `${id}-status`
-            ? { id: row.id, role: 'omni', text: response, suggestions, queryId, pinned: false, feedback: null, prompt }
+            ? { id: row.id, role: 'omni', text: response, suggestions, queryId, pinned: false, feedback: null, prompt, sources }
             : row
         )
       );
@@ -785,6 +795,21 @@ export default function ChatPage() {
                     </div>
                   )}
                   {regeneratingId === row.id ? <TypingDots /> : <p className="message-text">{row.text}</p>}
+                  {row.role === 'omni' && row.sources?.length > 0 && (
+                    <ul className="sources-list">
+                      {row.sources.map((s, i) =>
+                        isSafeHttpUrl(s.link) ? (
+                          <li key={i}>
+                            <a href={s.link} target="_blank" rel="noreferrer">
+                              {s.title}
+                            </a>
+                          </li>
+                        ) : (
+                          <li key={i}>{s.title}</li>
+                        )
+                      )}
+                    </ul>
+                  )}
                   {row.role === 'omni' && row.suggestions?.length > 0 && index === rows.length - 1 && (
                     <div className="chip-row suggestion-row">
                       {row.suggestions.map((s, i) => (
@@ -833,6 +858,15 @@ export default function ChatPage() {
                 {p.label}
               </button>
             ))}
+            <span className="chip-row-divider" />
+            <button
+              className={`chip mode-chip ${webSearchOn ? 'active' : ''}`}
+              type="button"
+              onClick={toggleWebSearch}
+              title="Ground the next answer in live web search results"
+            >
+              Web search
+            </button>
           </div>
 
           <form className="composer" onSubmit={submit}>

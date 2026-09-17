@@ -5,6 +5,7 @@ const { getDb } = require('./db');
 const { getMemoryContext, extractAndSaveMemory } = require('./memory');
 const { getPersonaInstruction } = require('./personas');
 const { getFollowUpSuggestions } = require('./suggestions');
+const { getWebGroundingContext } = require('./web-grounding');
 
 const chatRouter = express.Router();
 
@@ -79,7 +80,9 @@ chatRouter.post('/chat', requireAuth, async (req, res) => {
   try {
     const memoryContext = getMemoryContext(req.session.userId);
     const personaInstruction = getPersonaInstruction(raw.persona);
-    const extraContext = [personaInstruction, memoryContext].filter(Boolean).join('\n\n') || null;
+    const grounding = raw.webSearch === true ? await getWebGroundingContext(prompt) : null;
+    const extraContext =
+      [personaInstruction, grounding?.context, memoryContext].filter(Boolean).join('\n\n') || null;
     const { text, backendUsed, category } = await route(prompt, extraContext);
     const db = getDb();
     const insertResult = db
@@ -90,7 +93,12 @@ chatRouter.post('/chat', requireAuth, async (req, res) => {
     // fresh pick -- see server/memory.js for why that matters.
     const preferredAdapter = DEFAULT_ADAPTERS.find((a) => a.name === backendUsed);
     const suggestions = await getFollowUpSuggestions(prompt, text, preferredAdapter).catch(() => []);
-    res.json({ response: text, suggestions, queryId: Number(insertResult.lastInsertRowid) });
+    res.json({
+      response: text,
+      suggestions,
+      queryId: Number(insertResult.lastInsertRowid),
+      sources: grounding?.sources || [],
+    });
     // Fire-and-forget: extracting a durable fact is a "nice to have" that
     // must never delay or break the response the user is waiting on.
     extractAndSaveMemory(req.session.userId, prompt, text, preferredAdapter).catch(() => {});
