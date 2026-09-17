@@ -3,6 +3,7 @@ const { requireAuth } = require('./auth');
 const { route, DEFAULT_ADAPTERS } = require('./router');
 const { getDb } = require('./db');
 const { getMemoryContext, extractAndSaveMemory } = require('./memory');
+const { getPersonaInstruction } = require('./personas');
 
 const chatRouter = express.Router();
 
@@ -30,7 +31,9 @@ chatRouter.post('/chat', requireAuth, async (req, res) => {
 
   try {
     const memoryContext = getMemoryContext(req.session.userId);
-    const { text, backendUsed, category } = await route(prompt, memoryContext);
+    const personaInstruction = getPersonaInstruction(raw.persona);
+    const extraContext = [personaInstruction, memoryContext].filter(Boolean).join('\n\n') || null;
+    const { text, backendUsed, category } = await route(prompt, extraContext);
     const db = getDb();
     db.prepare('INSERT INTO queries (user_id, prompt, response, backend_used, category, created_at) VALUES (?, ?, ?, ?, ?, ?)')
       .run(req.session.userId, prompt, text, backendUsed, category, new Date().toISOString());

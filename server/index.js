@@ -6,6 +6,7 @@ const { SqliteSessionStore } = require('./sqlite-session-store');
 const { authRouter } = require('./auth');
 const { chatRouter } = require('./chat');
 const { mediaRouter } = require('./media');
+const { filesRouter } = require('./files');
 const { financeNewsRouter } = require('./finance-news');
 const { authLimiter, chatLimiter, mediaLimiter } = require('./rate-limit');
 
@@ -33,11 +34,12 @@ function createApp() {
   app.use('/register', authLimiter);
   app.use('/login', authLimiter);
   app.use(['/chat', '/history'], chatLimiter);
-  app.use(['/generate-image', '/transcribe'], mediaLimiter);
+  app.use(['/generate-image', '/transcribe', '/analyze-file'], mediaLimiter);
   app.use(['/finance', '/news'], chatLimiter);
   app.use(authRouter);
   app.use(chatRouter);
   app.use(mediaRouter);
+  app.use(filesRouter);
   app.use(financeNewsRouter);
 
   // Single-service deployment: serve the built React app from the same

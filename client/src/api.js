@@ -10,12 +10,12 @@ export function getHistory() {
   return fetch('/history', { credentials: 'include' }).then(handle);
 }
 
-export function sendChat(prompt) {
+export function sendChat(prompt, persona) {
   return fetch('/chat', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     credentials: 'include',
-    body: JSON.stringify({ prompt }),
+    body: JSON.stringify({ prompt, persona: persona || undefined }),
   }).then(handle);
 }
 
@@ -32,6 +32,17 @@ export function transcribeAudio(blob) {
   const form = new FormData();
   form.append('audio', blob, 'clip.webm');
   return fetch('/transcribe', {
+    method: 'POST',
+    credentials: 'include',
+    body: form,
+  }).then(handle);
+}
+
+export function analyzeFile(file, question) {
+  const form = new FormData();
+  form.append('file', file);
+  form.append('question', question || '');
+  return fetch('/analyze-file', {
     method: 'POST',
     credentials: 'include',
     body: form,

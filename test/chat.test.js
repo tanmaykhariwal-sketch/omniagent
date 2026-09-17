@@ -102,3 +102,51 @@ test('history returns this session\'s past text-chat exchanges in order', async 
   delete process.env.OLLAMA_BASE_URL;
   delete process.env.LOCAL_GENERAL_MODEL;
 });
+
+test('a known persona is folded into the system prompt; an unknown one is ignored', async () => {
+  const http = require('node:http');
+  const TEST_DB_3 = path.join(__dirname, 'test-chat-persona.sqlite');
+  process.env.DB_PATH = TEST_DB_3;
+
+  let lastSystemContent = null;
+  const fakeOllama = http.createServer((req, res) => {
+    let body = '';
+    req.on('data', (chunk) => (body += chunk));
+    req.on('end', () => {
+      lastSystemContent = JSON.parse(body).messages[0].content;
+      res.setHeader('Content-Type', 'application/json');
+      res.end(JSON.stringify({ message: { content: 'ok' } }));
+    });
+  });
+  await new Promise((resolve) => fakeOllama.listen(0, resolve));
+  process.env.OLLAMA_BASE_URL = `http://localhost:${fakeOllama.address().port}`;
+  process.env.LOCAL_GENERAL_MODEL = 'qwen2.5:7b';
+  process.env.LOCAL_CODING_MODEL = '';
+
+  const { createApp } = require('../server/index.js');
+  const { closeDb } = require('../server/db.js');
+  const app = createApp();
+  const server = app.listen(0);
+  const base = `http://localhost:${server.address().port}`;
+
+  await fetch(`${base}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: 'hi', persona: 'casual' }),
+  });
+  assert.match(lastSystemContent, /casual, friendly tone/);
+
+  await fetch(`${base}/chat`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ prompt: 'hi', persona: 'not-a-real-persona' }),
+  });
+  assert.doesNotMatch(lastSystemContent, /not-a-real-persona/);
+
+  server.close();
+  fakeOllama.close();
+  closeDb();
+  fs.rmSync(TEST_DB_3, { force: true, maxRetries: 5, retryDelay: 100 });
+  delete process.env.OLLAMA_BASE_URL;
+  delete process.env.LOCAL_GENERAL_MODEL;
+});

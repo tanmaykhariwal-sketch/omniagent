@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { sendChat, generateImage, transcribeAudio, getQuote, searchNews, getHistory } from './api.js';
+import { sendChat, generateImage, transcribeAudio, getQuote, searchNews, getHistory, analyzeFile } from './api.js';
 import { speak, isSpeechSynthesisSupported, AudioRecorder, isRecordingSupported } from './speech.js';
 import { initTheme, applyTheme } from './theme.js';
 
@@ -13,6 +13,13 @@ const MODE_ACTIONS = [
   { mode: 'image', label: 'Image' },
   { mode: 'finance', label: 'Finance' },
   { mode: 'news', label: 'News' },
+];
+
+const PERSONAS = [
+  { id: 'professional', label: 'Professional' },
+  { id: 'casual', label: 'Casual' },
+  { id: 'creative', label: 'Creative' },
+  { id: 'technical', label: 'Technical' },
 ];
 
 const STARTER_PROMPTS = [
@@ -48,6 +55,14 @@ function TypingDots() {
       <span />
       <span />
     </span>
+  );
+}
+
+function PaperclipIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M11 4.5 5.5 10a2 2 0 1 0 2.8 2.8L14 7.1a3.5 3.5 0 1 0-5-5L3.5 7.6a5 5 0 1 0 7.1 7.1" />
+    </svg>
   );
 }
 
@@ -174,9 +189,12 @@ export default function ChatPage() {
   const [transcribing, setTranscribing] = useState(false);
   const [theme, setTheme] = useState('light');
   const [copiedId, setCopiedId] = useState(null);
+  const [uploadingFile, setUploadingFile] = useState(false);
+  const [persona, setPersona] = useState(null);
   const textareaRef = useRef(null);
   const recorderRef = useRef(null);
   const chatEndRef = useRef(null);
+  const fileInputRef = useRef(null);
 
   useEffect(() => {
     setTheme(initTheme());
@@ -241,6 +259,11 @@ export default function ChatPage() {
     textareaRef.current?.focus();
   }
 
+  function togglePersona(id) {
+    setPersona((p) => (p === id ? null : id));
+    textareaRef.current?.focus();
+  }
+
   async function submit(e) {
     e.preventDefault();
     const prompt = input.trim();
@@ -298,7 +321,7 @@ export default function ChatPage() {
     setRows((r) => appendRows(r, { id, role: 'you', text: prompt }, { id: `${id}-status`, role: 'typing' }));
 
     try {
-      const { response } = await sendChat(prompt);
+      const { response } = await sendChat(prompt, persona);
       setRows((r) =>
         r.map((row) => (row.id === `${id}-status` ? { id: row.id, role: 'omni', text: response } : row))
       );
@@ -334,6 +357,35 @@ export default function ChatPage() {
       setRecording(true);
     } catch (err) {
       setRows((r) => appendRows(r, { id: crypto.randomUUID(), role: 'error', text: 'Microphone access was denied or is unavailable.' }));
+    }
+  }
+
+  async function uploadFile(e) {
+    const file = e.target.files?.[0];
+    e.target.value = ''; // allow re-selecting the same file next time
+    if (!file || sending || uploadingFile) return;
+
+    const question = input.trim();
+    setInput('');
+    setUploadingFile(true);
+    const id = crypto.randomUUID();
+    setRows((r) =>
+      appendRows(
+        r,
+        { id, role: 'you', text: `📎 ${file.name}${question ? ` — ${question}` : ''}` },
+        { id: `${id}-status`, role: 'generating' }
+      )
+    );
+
+    try {
+      const { response } = await analyzeFile(file, question);
+      setRows((r) => r.map((row) => (row.id === `${id}-status` ? { id: row.id, role: 'omni', text: response } : row)));
+    } catch (err) {
+      setRows((r) =>
+        r.map((row) => (row.id === `${id}-status` ? { id: row.id, role: 'error', text: err.message } : row))
+      );
+    } finally {
+      setUploadingFile(false);
     }
   }
 
@@ -481,9 +533,38 @@ export default function ChatPage() {
                 {ma.label}
               </button>
             ))}
+            <span className="chip-row-divider" />
+            {PERSONAS.map((p) => (
+              <button
+                key={p.id}
+                className={`chip mode-chip ${persona === p.id ? 'active' : ''}`}
+                type="button"
+                onClick={() => togglePersona(p.id)}
+                title={`Answer in a ${p.label.toLowerCase()} tone`}
+              >
+                {p.label}
+              </button>
+            ))}
           </div>
 
           <form className="composer" onSubmit={submit}>
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".pdf,.docx,.csv,.txt,application/pdf,text/csv,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              onChange={uploadFile}
+              hidden
+            />
+            <button
+              type="button"
+              className="mic-btn"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploadingFile}
+              title="Attach a file (PDF, DOCX, CSV, TXT)"
+              aria-label="Attach a file"
+            >
+              <PaperclipIcon />
+            </button>
             <textarea
               ref={textareaRef}
               rows={1}
