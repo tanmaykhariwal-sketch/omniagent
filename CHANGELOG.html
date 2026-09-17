@@ -285,7 +285,17 @@
 
     <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Feature</span><h2>More quick-action chips</h2><span class="entry-date">2026-09-17 (pending commit)</span></div>
+        <div class="card-head"><span class="tag">Feature</span><h2>Responsive polish and a message-entrance animation</h2><span class="entry-date">2026-09-17 (pending commit)</span></div>
+        <div class="field"><span class="field-label">What</span><p>The pinned/privacy overlay panel goes full-width with tighter padding under the existing 640px mobile breakpoint. A subtle fade/slide-up entrance animation plays on each chat message, gated behind <code>prefers-reduced-motion: no-preference</code>.</p></div>
+        <div class="field"><span class="field-label">Why</span><p>One of the remaining "partial" polish items. A caveman subagent review confirmed the animation only plays once per row on first mount (stable <code>key={row.id}</code> across typing/regenerate transitions), the reduced-motion gate isn't inverted, and it uses only compositor-only properties.</p></div>
+        <div class="field"><span class="field-label">Files</span><div class="files"><code>client/src/styles.css</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Subagent review only — caveman-reviewer: 75,940. Main implementation cost isn't exposed by any available tool.</p></div>
+      </div>
+    </div>
+
+    <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
+      <div class="card">
+        <div class="card-head"><span class="tag">Feature</span><h2>More quick-action chips</h2><span class="entry-date">2026-09-17 16:58</span></div>
         <div class="field"><span class="field-label">What</span><p>Added Fix grammar, Brainstorm, and Translate to the existing Summarize/Explain code/Draft email quick-action chips.</p></div>
         <div class="field"><span class="field-label">Why</span><p>Continuing the feature list "biggest to smallest" — a smaller polish item. Static data-array addition, no new logic, no subagent review run.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>client/src/ChatPage.jsx</code></div></div>

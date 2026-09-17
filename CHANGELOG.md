@@ -15,9 +15,17 @@ Newest entries at the top.
 
 ---
 
-## More quick-action chips
+## Responsive polish and a message-entrance animation
 
 **Date:** 2026-09-17 (pending commit)
+**What:** The pinned/privacy overlay panel now goes full-width with tighter padding under the existing 640px mobile breakpoint. A subtle fade/slide-up entrance animation plays on each chat message, gated behind `@media (prefers-reduced-motion: no-preference)` so reduced-motion users get none.
+**Why:** One of the remaining "partial" polish items on the feature list. A caveman subagent review confirmed the animation is correctly scoped: `key={row.id}` stays stable across the typing-to-answer and regenerate transitions, so the animation only plays once per row on its first mount rather than replaying on every text update; the reduced-motion gate isn't inverted; and the animation uses only `opacity`/`transform` (compositor-only), so it doesn't interact badly with the existing auto-scroll-to-bottom effect.
+**Files:** `client/src/styles.css`.
+**Tokens:** Subagent review only — caveman-reviewer: 75,940. Main implementation cost isn't exposed by any available tool.
+
+## More quick-action chips
+
+**Date:** 2026-09-17 16:58
 **What:** Added Fix grammar, Brainstorm, and Translate to the existing Summarize/Explain code/Draft email quick-action chips.
 **Why:** Continuing the feature list "biggest to smallest" — one of the smaller remaining polish items. A static data-array addition with no new logic, so no subagent review was run.
 **Files:** `client/src/ChatPage.jsx`.
