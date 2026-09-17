@@ -112,6 +112,15 @@ function CheckIcon() {
   );
 }
 
+function RegenerateIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M13.5 8A5.5 5.5 0 1 1 11.8 4" />
+      <path d="M13.5 2.5v3.5H10" />
+    </svg>
+  );
+}
+
 function ShareIcon() {
   return (
     <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
@@ -210,6 +219,7 @@ export default function ChatPage() {
   const [theme, setTheme] = useState('light');
   const [copiedId, setCopiedId] = useState(null);
   const [sharedId, setSharedId] = useState(null);
+  const [regeneratingId, setRegeneratingId] = useState(null);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [persona, setPersona] = useState(null);
   const [pinnedOpen, setPinnedOpen] = useState(false);
@@ -230,7 +240,7 @@ export default function ChatPage() {
         if (history.length === 0) return;
         const restored = history.flatMap((h) => [
           { id: crypto.randomUUID(), role: 'you', text: h.prompt },
-          { id: crypto.randomUUID(), role: 'omni', text: h.response, queryId: h.id, pinned: !!h.pinned },
+          { id: crypto.randomUUID(), role: 'omni', text: h.response, queryId: h.id, pinned: !!h.pinned, prompt: h.prompt },
         ]);
         setRows((r) => (r.length === 0 ? restored : r));
       })
@@ -283,6 +293,23 @@ export default function ChatPage() {
       setTimeout(() => setSharedId((current) => (current === id ? null : current)), 1500);
     } catch {
       // clipboard access denied/unsupported -- nothing more we can do
+    }
+  }
+
+  async function regenerateAnswer(row) {
+    if (!row.prompt || sending || regeneratingId) return;
+    setRegeneratingId(row.id);
+    try {
+      const { response, suggestions, queryId } = await sendChat(row.prompt, persona);
+      setRows((r) =>
+        r.map((x) => (x.id === row.id ? { ...x, text: response, suggestions, queryId, pinned: false } : x))
+      );
+    } catch (err) {
+      setRows((r) =>
+        r.map((x) => (x.id === row.id ? { id: x.id, role: 'error', text: err.message, prompt: row.prompt } : x))
+      );
+    } finally {
+      setRegeneratingId(null);
     }
   }
 
@@ -345,7 +372,7 @@ export default function ChatPage() {
   async function submit(e) {
     e.preventDefault();
     const prompt = input.trim();
-    if (!prompt || sending) return;
+    if (!prompt || sending || regeneratingId) return;
 
     const id = crypto.randomUUID();
     setInput('');
@@ -402,7 +429,9 @@ export default function ChatPage() {
       const { response, suggestions, queryId } = await sendChat(prompt, persona);
       setRows((r) =>
         r.map((row) =>
-          row.id === `${id}-status` ? { id: row.id, role: 'omni', text: response, suggestions, queryId, pinned: false } : row
+          row.id === `${id}-status`
+            ? { id: row.id, role: 'omni', text: response, suggestions, queryId, pinned: false, prompt }
+            : row
         )
       );
     } catch (err) {
@@ -568,6 +597,20 @@ export default function ChatPage() {
                   role={row.role === 'error' ? 'alert' : undefined}
                   aria-live={row.role === 'omni' ? 'polite' : undefined}
                 >
+                  {row.role === 'error' && row.prompt && index === rows.length - 1 && (
+                    <div className="message-label">
+                      <button
+                        className="speak-btn"
+                        type="button"
+                        onClick={() => regenerateAnswer(row)}
+                        disabled={sending || regeneratingId === row.id}
+                        title="Retry"
+                        aria-label="Retry this message"
+                      >
+                        <RegenerateIcon />
+                      </button>
+                    </div>
+                  )}
                   {row.role === 'omni' && (
                     <div className="message-label">
                       <span className="message-label-text">OmniAgent</span>
@@ -611,9 +654,21 @@ export default function ChatPage() {
                           <PinIcon filled={row.pinned} />
                         </button>
                       )}
+                      {row.prompt && index === rows.length - 1 && (
+                        <button
+                          className="speak-btn"
+                          type="button"
+                          onClick={() => regenerateAnswer(row)}
+                          disabled={sending || regeneratingId === row.id}
+                          title="Regenerate this answer"
+                          aria-label="Regenerate this answer"
+                        >
+                          <RegenerateIcon />
+                        </button>
+                      )}
                     </div>
                   )}
-                  <p className="message-text">{row.text}</p>
+                  {regeneratingId === row.id ? <TypingDots /> : <p className="message-text">{row.text}</p>}
                   {row.role === 'omni' && row.suggestions?.length > 0 && index === rows.length - 1 && (
                     <div className="chip-row suggestion-row">
                       {row.suggestions.map((s, i) => (
@@ -710,7 +765,7 @@ export default function ChatPage() {
             <button
               className="send-btn"
               type="submit"
-              disabled={sending || !input.trim()}
+              disabled={sending || !!regeneratingId || !input.trim()}
               title={transcribing ? 'Transcribing…' : 'Send'}
               aria-label={transcribing ? 'Transcribing…' : 'Send message'}
             >
