@@ -22,7 +22,7 @@ async function loginCookie(base) {
   return login.headers.get('set-cookie');
 }
 
-test('media routes require auth', async () => {
+test('media routes need no login, auto-provisioning a session', async () => {
   delete process.env.HF_API_KEY;
   const { createApp } = require('../server/index.js');
   const app = createApp();
@@ -34,10 +34,11 @@ test('media routes require auth', async () => {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt: 'a cat' }),
   });
-  assert.strictEqual(image.status, 401);
+  assert.notStrictEqual(image.status, 401);
+  assert.ok(image.headers.get('set-cookie'));
 
   const transcribe = await fetch(`${base}/transcribe`, { method: 'POST' });
-  assert.strictEqual(transcribe.status, 401);
+  assert.notStrictEqual(transcribe.status, 401);
 
   server.close();
 });

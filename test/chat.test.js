@@ -14,41 +14,25 @@ for (const key of ['LOCAL_CODING_MODEL', 'LOCAL_GENERAL_MODEL', 'OPENROUTER_API_
   process.env[key] = '';
 }
 
-test('chat requires auth, then routes and logs', async () => {
+test('chat needs no login, auto-provisions a session, routes and logs', async () => {
   const { createApp } = require('../server/index.js');
   const app = createApp();
   const server = app.listen(0);
   const base = `http://localhost:${server.address().port}`;
 
-  const unauth = await fetch(`${base}/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ prompt: 'hi' }),
-  });
-  assert.strictEqual(unauth.status, 401);
-
-  await fetch(`${base}/register`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'b@example.com', password: 'hunter22' }),
-  });
-  const login = await fetch(`${base}/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email: 'b@example.com', password: 'hunter22' }),
-  });
-  const cookie = login.headers.get('set-cookie');
-
   // no keys configured in this test process -> chat should 503 with a
-  // generic message, no provider names leaked
+  // generic message, no provider names leaked. No prior register/login:
+  // requireAuth silently provisions an anonymous session on first request.
   const chatRes = await fetch(`${base}/chat`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Cookie: cookie },
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt: 'hi' }),
   });
   assert.strictEqual(chatRes.status, 503);
   const chatBody = await chatRes.json();
   assert.ok(!/anthropic|openai|gemini|mistral|cohere|huggingface|kimi|ollama|openrouter/i.test(JSON.stringify(chatBody)));
+
+  const cookie = chatRes.headers.get('set-cookie');
 
   const whitespaceOnly = await fetch(`${base}/chat`, {
     method: 'POST',

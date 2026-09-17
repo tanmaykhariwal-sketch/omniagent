@@ -1,4 +1,5 @@
 const express = require('express');
+const crypto = require('node:crypto');
 const bcrypt = require('bcryptjs');
 const { getDb } = require('./db');
 const { normalizeEmail, isValidEmail, isValidPassword } = require('./validate');
@@ -52,8 +53,20 @@ authRouter.post('/logout', (req, res) => {
 });
 
 function requireAuth(req, res, next) {
-  if (!req.session || !req.session.userId) return res.status(401).json({ error: 'unauthorized' });
-  next();
+  if (!req.session) return res.status(500).json({ error: 'session unavailable' });
+  if (req.session.userId) return next();
+
+  try {
+    const db = getDb();
+    const email = `anon-${crypto.randomUUID()}@omniagent.local`;
+    const passwordHash = crypto.randomBytes(32).toString('hex');
+    const result = db.prepare('INSERT INTO users (email, password_hash, created_at) VALUES (?, ?, ?)')
+      .run(email, passwordHash, new Date().toISOString());
+    req.session.userId = Number(result.lastInsertRowid);
+    next();
+  } catch (err) {
+    res.status(500).json({ error: 'could not start session' });
+  }
 }
 
 module.exports = { authRouter, requireAuth };

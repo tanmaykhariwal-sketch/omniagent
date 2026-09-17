@@ -1,5 +1,4 @@
-import { Component, useState } from 'react';
-import LoginPage from './LoginPage.jsx';
+import { Component } from 'react';
 import ChatPage from './ChatPage.jsx';
 
 // A single bad message row (e.g. a malformed API response) should not blank
@@ -34,11 +33,9 @@ class ErrorBoundary extends Component {
 }
 
 export default function App() {
-  const [loggedIn, setLoggedIn] = useState(false);
-
   return (
     <ErrorBoundary>
-      {!loggedIn ? <LoginPage onAuthed={() => setLoggedIn(true)} /> : <ChatPage onLoggedOut={() => setLoggedIn(false)} />}
+      <ChatPage />
     </ErrorBoundary>
   );
 }

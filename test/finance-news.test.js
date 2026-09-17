@@ -22,17 +22,18 @@ async function loginCookie(base) {
   return login.headers.get('set-cookie');
 }
 
-test('finance and news routes require auth', async () => {
+test('finance and news routes need no login, auto-provisioning a session', async () => {
   const { createApp } = require('../server/index.js');
   const app = createApp();
   const server = app.listen(0);
   const base = `http://localhost:${server.address().port}`;
 
   const finance = await fetch(`${base}/finance?symbol=AAPL`);
-  assert.strictEqual(finance.status, 401);
+  assert.notStrictEqual(finance.status, 401);
+  assert.ok(finance.headers.get('set-cookie'));
 
   const news = await fetch(`${base}/news?q=test`);
-  assert.strictEqual(news.status, 401);
+  assert.notStrictEqual(news.status, 401);
 
   server.close();
 });

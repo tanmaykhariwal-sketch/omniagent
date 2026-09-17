@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
-import { sendChat, generateImage, transcribeAudio, getQuote, searchNews, logout } from './api.js';
-import { speak, stopSpeaking, isSpeechSynthesisSupported, AudioRecorder, isRecordingSupported } from './speech.js';
+import { sendChat, generateImage, transcribeAudio, getQuote, searchNews } from './api.js';
+import { speak, isSpeechSynthesisSupported, AudioRecorder, isRecordingSupported } from './speech.js';
 import { initTheme, applyTheme } from './theme.js';
 
 const QUICK_ACTIONS = [
@@ -148,7 +148,7 @@ function NewsList({ headlines }) {
   );
 }
 
-export default function ChatPage({ onLoggedOut }) {
+export default function ChatPage() {
   const [input, setInput] = useState('');
   const [rows, setRows] = useState([]);
   const [sending, setSending] = useState(false);
@@ -293,12 +293,6 @@ export default function ChatPage({ onLoggedOut }) {
     }
   }
 
-  async function handleLogout() {
-    stopSpeaking();
-    await logout();
-    onLoggedOut();
-  }
-
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -311,9 +305,6 @@ export default function ChatPage({ onLoggedOut }) {
             aria-label={theme === 'light' ? 'Switch to dark theme' : 'Switch to light theme'}
           >
             {theme === 'light' ? <MoonIcon /> : <SunIcon />}
-          </button>
-          <button className="icon-btn" onClick={handleLogout}>
-            Sign out
           </button>
         </div>
       </header>
