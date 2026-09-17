@@ -1,6 +1,8 @@
 require('dotenv').config();
 const path = require('node:path');
 const express = require('express');
+const helmet = require('helmet');
+const morgan = require('morgan');
 const session = require('express-session');
 const { SqliteSessionStore } = require('./core/sqlite-session-store');
 const { authRouter } = require('./routes/auth');
@@ -21,6 +23,8 @@ function createApp() {
   // cookie would never be sent back by the browser.
   if (isProduction) app.set('trust proxy', 1);
 
+  app.use(helmet());
+  app.use(morgan(isProduction ? 'combined' : 'dev'));
   app.use(express.json());
   app.use(session({
     store: new SqliteSessionStore(),

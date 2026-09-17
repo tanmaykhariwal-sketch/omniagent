@@ -283,6 +283,16 @@
 
   <div class="timeline">
 
+    <div class="entry" style="--tag-color:var(--fix); --tag-soft:var(--fix-soft)">
+      <div class="card">
+        <div class="card-head"><span class="tag">Fix</span><h2>Production readiness: CI, security headers, request logging</h2><span class="entry-date">2026-09-17 (pending commit)</span></div>
+        <div class="field"><span class="field-label">What</span><p>Fixed 2 moderate <code>npm audit</code> vulnerabilities (transitive <code>qs</code> via Express) via <code>npm audit fix</code>. Added <code>.github/workflows/ci.yml</code> running the backend test suite and client build on every push/PR to <code>main</code>. Added <code>helmet()</code> (CSP, HSTS, and other security response headers) and <code>morgan</code> (per-request access logging) to <code>server/index.js</code>. Added <code>.github/dependabot.yml</code> for weekly npm update PRs on both the root and client package ecosystems.</p></div>
+        <div class="field"><span class="field-label">Why</span><p>Explicit request for a production-readiness plan, scoped down (via a clarifying question) from a broader "make it better" ask -- the user picked production readiness over remaining features, code-quality tooling, or growth/analytics for this round. None of these existed before: no CI meant a broken commit could reach <code>main</code> and then Render with nothing catching it; no security headers on any response; no request-level logging, so Render's log viewer showed nothing about traffic volume, latency, or status codes. Verified helmet's default CSP doesn't break the served React SPA by building the client, booting the server with <code>NODE_ENV=production</code> locally, loading the app in the browser pane, confirming zero console errors and a full accessibility-tree render, and watching a real <code>/chat</code> request round-trip and appear in morgan's access log. A larger, genuinely tradeoff-laden item -- fixing Render's free-tier ephemeral SQLite storage (every redeploy wipes all data) -- was scoped in the same plan but deliberately left unstarted pending the user's choice between a paid Render disk or a bigger sync-to-async database migration.</p></div>
+        <div class="field"><span class="field-label">Files</span><div class="files"><code>.github/workflows/ci.yml</code> (new)<code>.github/dependabot.yml</code> (new)<code>server/index.js</code><code>package.json</code><code>package-lock.json</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Not tracked — no token-usage API available for this unit of work.</p></div>
+      </div>
+    </div>
+
     <div class="entry" style="--tag-color:var(--change); --tag-soft:var(--change-soft)">
       <div class="card">
         <div class="card-head"><span class="tag">Decision</span><h2>Reorganized server/ and test/ into subfolders</h2><span class="entry-date">2026-09-17 (pending commit)</span></div>
