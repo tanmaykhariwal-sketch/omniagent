@@ -80,6 +80,23 @@ function SpeakerIcon() {
   );
 }
 
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
+      <path d="M3 10.5V3.5a1 1 0 0 1 1-1H10" />
+    </svg>
+  );
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 8.5l3 3 7-7" />
+    </svg>
+  );
+}
+
 function SunIcon() {
   return (
     <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
@@ -156,6 +173,7 @@ export default function ChatPage() {
   const [recording, setRecording] = useState(false);
   const [transcribing, setTranscribing] = useState(false);
   const [theme, setTheme] = useState('light');
+  const [copiedId, setCopiedId] = useState(null);
   const textareaRef = useRef(null);
   const recorderRef = useRef(null);
   const chatEndRef = useRef(null);
@@ -178,6 +196,16 @@ export default function ChatPage() {
     const next = theme === 'light' ? 'dark' : 'light';
     setTheme(next);
     applyTheme(next);
+  }
+
+  async function copyText(id, text) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopiedId(id);
+      setTimeout(() => setCopiedId((current) => (current === id ? null : current)), 1500);
+    } catch {
+      // clipboard access denied/unsupported -- text is still selectable manually
+    }
   }
 
   function prefill(text) {
@@ -387,6 +415,15 @@ export default function ChatPage() {
                   {row.role === 'omni' && (
                     <div className="message-label">
                       <span className="message-label-text">OmniAgent</span>
+                      <button
+                        className="speak-btn"
+                        type="button"
+                        onClick={() => copyText(row.id, row.text)}
+                        title={copiedId === row.id ? 'Copied!' : 'Copy'}
+                        aria-label={copiedId === row.id ? 'Copied' : 'Copy message'}
+                      >
+                        {copiedId === row.id ? <CheckIcon /> : <CopyIcon />}
+                      </button>
                       {isSpeechSynthesisSupported() && (
                         <button
                           className="speak-btn"

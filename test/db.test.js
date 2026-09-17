@@ -5,7 +5,7 @@ const path = require('node:path');
 
 const TEST_DB = path.join(__dirname, 'test-omniagent.sqlite');
 
-test('getDb creates users, queries, and sessions tables', () => {
+test('getDb creates users, queries, sessions, and memories tables', () => {
   process.env.DB_PATH = TEST_DB;
   delete require.cache[require.resolve('../server/db.js')];
   const { getDb, closeDb } = require('../server/db.js');
@@ -14,6 +14,7 @@ test('getDb creates users, queries, and sessions tables', () => {
   assert.ok(tables.includes('users'));
   assert.ok(tables.includes('queries'));
   assert.ok(tables.includes('sessions'));
+  assert.ok(tables.includes('memories'));
   closeDb();
   fs.rmSync(TEST_DB, { force: true, maxRetries: 5, retryDelay: 100 });
 });

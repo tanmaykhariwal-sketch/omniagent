@@ -6,7 +6,7 @@ function createLocalAdapter({ name, modelEnvVar, systemPrompt }) {
   return {
     name,
     isConfigured: () => !!process.env[modelEnvVar],
-    async send(prompt) {
+    async send(prompt, extraContext) {
       const baseUrl = process.env[BASE_URL_ENV] || 'http://localhost:11434';
       const model = process.env[modelEnvVar];
       const res = await fetchWithTimeout(`${baseUrl}/api/chat`, {
@@ -16,7 +16,7 @@ function createLocalAdapter({ name, modelEnvVar, systemPrompt }) {
           model,
           stream: false,
           messages: [
-            { role: 'system', content: systemPrompt },
+            { role: 'system', content: extraContext ? `${systemPrompt}\n\n${extraContext}` : systemPrompt },
             { role: 'user', content: prompt },
           ],
         }),

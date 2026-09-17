@@ -6,7 +6,7 @@ function createCloudAdapter({ name, modelEnvVar, systemPrompt }) {
   return {
     name,
     isConfigured: () => !!process.env.OPENROUTER_API_KEY && !!process.env[modelEnvVar],
-    async send(prompt) {
+    async send(prompt, extraContext) {
       const model = process.env[modelEnvVar];
       const baseUrl = process.env.OPENROUTER_BASE_URL || DEFAULT_BASE_URL;
       const res = await fetchWithTimeout(baseUrl, {
@@ -20,7 +20,7 @@ function createCloudAdapter({ name, modelEnvVar, systemPrompt }) {
         body: JSON.stringify({
           model,
           messages: [
-            { role: 'system', content: systemPrompt },
+            { role: 'system', content: extraContext ? `${systemPrompt}\n\n${extraContext}` : systemPrompt },
             { role: 'user', content: prompt },
           ],
         }),

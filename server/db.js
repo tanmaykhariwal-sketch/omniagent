@@ -28,6 +28,12 @@ function getDb() {
       data TEXT NOT NULL,
       expires_at TEXT NOT NULL
     );
+    CREATE TABLE IF NOT EXISTS memories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      fact TEXT NOT NULL,
+      created_at TEXT NOT NULL
+    );
   `);
   return dbInstance;
 }
