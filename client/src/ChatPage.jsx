@@ -873,7 +873,7 @@ export default function ChatPage() {
             <input
               ref={fileInputRef}
               type="file"
-              accept=".pdf,.docx,.csv,.txt,application/pdf,text/csv,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+              accept=".pdf,.docx,.csv,.txt,.jpg,.jpeg,.png,.webp,.gif,application/pdf,text/csv,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document,image/jpeg,image/png,image/webp,image/gif"
               onChange={uploadFile}
               hidden
             />
@@ -882,8 +882,8 @@ export default function ChatPage() {
               className="mic-btn"
               onClick={() => fileInputRef.current?.click()}
               disabled={uploadingFile}
-              title="Attach a file (PDF, DOCX, CSV, TXT)"
-              aria-label="Attach a file"
+              title="Attach a file or image (PDF, DOCX, CSV, TXT, JPG, PNG, WEBP, GIF)"
+              aria-label="Attach a file or image"
             >
               <PaperclipIcon />
             </button>
