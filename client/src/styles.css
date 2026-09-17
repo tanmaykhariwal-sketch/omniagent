@@ -656,6 +656,7 @@ button {
   border-radius: 999px;
   padding: 6px 12px;
   font-size: 12px;
+  font-weight: 500;
   cursor: pointer;
   transition: border-color 0.15s ease, color 0.15s ease, background-color 0.15s ease;
 }
@@ -663,16 +664,6 @@ button {
 .chip:hover {
   border-color: var(--accent);
   color: var(--text);
-}
-
-.chip kbd {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  color: var(--text-faint);
-  background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 3px;
-  padding: 1px 4px;
 }
 
 .chip.mode-chip.active {

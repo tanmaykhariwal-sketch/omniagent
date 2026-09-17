@@ -4,9 +4,9 @@ import { speak, isSpeechSynthesisSupported, AudioRecorder, isRecordingSupported 
 import { initTheme, applyTheme } from './theme.js';
 
 const QUICK_ACTIONS = [
-  { label: 'Summarize', key: '1', prefill: 'Summarize the following:\n\n' },
-  { label: 'Explain code', key: '2', prefill: 'Explain what this code does:\n\n' },
-  { label: 'Draft email', key: '3', prefill: 'Draft a professional email about:\n\n' },
+  { label: 'Summarize', prefill: 'Summarize the following:\n\n' },
+  { label: 'Explain code', prefill: 'Explain what this code does:\n\n' },
+  { label: 'Draft email', prefill: 'Draft a professional email about:\n\n' },
 ];
 
 const MODE_ACTIONS = [
@@ -415,7 +415,6 @@ export default function ChatPage() {
             {QUICK_ACTIONS.map((qa) => (
               <button key={qa.label} className="chip" type="button" onClick={() => prefill(qa.prefill)}>
                 {qa.label}
-                <kbd>⌥{qa.key}</kbd>
               </button>
             ))}
             <span className="chip-row-divider" />
