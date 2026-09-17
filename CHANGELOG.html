@@ -285,7 +285,17 @@
 
     <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Feature</span><h2>Regenerate button for the last answer</h2><span class="entry-date">2026-09-17 (pending commit)</span></div>
+        <div class="card-head"><span class="tag">Feature</span><h2>Export a conversation as Markdown</h2><span class="entry-date">2026-09-17 (pending commit)</span></div>
+        <div class="field"><span class="field-label">What</span><p>An Export button in the header downloads the current conversation as a <code>.md</code> file, built entirely client-side via <code>Blob</code> + object URL + a programmatic anchor click, no backend route involved.</p></div>
+        <div class="field"><span class="field-label">Why</span><p>Continuing the feature list "biggest to smallest" — #11 on the list. A caveman subagent review caught one minor issue, fixed: the download anchor was clicked without being appended to the DOM first, a known non-standard-compliant pattern. An ecc security review confirmed the filename/content-type are fixed literals with no attacker-controlled input.</p></div>
+        <div class="field"><span class="field-label">Files</span><div class="files"><code>client/src/ChatPage.jsx</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Subagent reviews only — caveman-reviewer: 73,961; ecc security-reviewer: 70,997. Main implementation cost isn't exposed by any available tool.</p></div>
+      </div>
+    </div>
+
+    <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
+      <div class="card">
+        <div class="card-head"><span class="tag">Feature</span><h2>Regenerate button for the last answer</h2><span class="entry-date">2026-09-17 15:39</span></div>
         <div class="field"><span class="field-label">What</span><p>A Regenerate button on the most recent assistant message re-sends the same prompt and replaces that message's text/suggestions/pin state in place, showing typing dots while in flight. Failed answers also get a retry affordance, since the original prompt is preserved on the row.</p></div>
         <div class="field"><span class="field-label">Why</span><p>Continuing the feature list "biggest to smallest" — #9 on the list. A caveman subagent review caught two real issues, both fixed: a failed regenerate was dropping the `prompt` field permanently (no retry without re-typing), and <code>submit()</code>'s guard didn't check the in-flight regenerate state, allowing a race between two concurrent sends. An ecc security review confirmed no new backend surface and no injection risk.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>client/src/ChatPage.jsx</code></div></div>

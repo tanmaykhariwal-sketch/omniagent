@@ -112,6 +112,15 @@ function CheckIcon() {
   );
 }
 
+function DownloadIcon() {
+  return (
+    <svg viewBox="0 0 16 16" width="15" height="15" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M8 1.5v8.5M4.5 6.5 8 10l3.5-3.5" />
+      <path d="M2.5 12.5v1a1 1 0 0 0 1 1h9a1 1 0 0 0 1-1v-1" />
+    </svg>
+  );
+}
+
 function RegenerateIcon() {
   return (
     <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
@@ -346,6 +355,31 @@ export default function ChatPage() {
     }
   }
 
+  function rowToMarkdown(row) {
+    if (row.role === 'you') return `**You:** ${row.text}`;
+    if (row.role === 'omni') return `**OmniAgent:** ${row.text}`;
+    if (row.role === 'error') return `**Error:** ${row.text}`;
+    if (row.role === 'image') return '**OmniAgent:** _[generated image, not included in export]_';
+    if (row.role === 'quote') return `**OmniAgent:** ${row.quote.symbol} — ${typeof row.quote.price === 'number' ? row.quote.price.toFixed(2) : '—'} ${row.quote.currency || ''}`.trim();
+    if (row.role === 'news') return `**OmniAgent:** ${row.headlines.map((h) => `- ${h.headline}`).join('\n')}`;
+    return null;
+  }
+
+  function exportChat() {
+    const lines = rows.map(rowToMarkdown).filter(Boolean);
+    if (lines.length === 0) return;
+    const content = `# OmniAgent conversation\n\nExported ${new Date().toLocaleString()}\n\n${lines.join('\n\n')}\n`;
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `omniagent-chat-${new Date().toISOString().slice(0, 10)}.md`;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+  }
+
   async function openPinned() {
     setPinnedOpen(true);
     setPinnedLoading(true);
@@ -503,6 +537,15 @@ export default function ChatPage() {
       <header className="app-header">
         <p className="wordmark">OmniAgent</p>
         <div className="header-actions">
+          <button
+            className="theme-toggle"
+            onClick={exportChat}
+            disabled={rows.length === 0}
+            title="Export this conversation"
+            aria-label="Export this conversation"
+          >
+            <DownloadIcon />
+          </button>
           <button
             className="theme-toggle"
             onClick={openPinned}

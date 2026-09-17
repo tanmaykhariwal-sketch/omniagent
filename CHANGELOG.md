@@ -15,9 +15,17 @@ Newest entries at the top.
 
 ---
 
-## Regenerate button for the last answer
+## Export a conversation as Markdown
 
 **Date:** 2026-09-17 (pending commit)
+**What:** An Export button in the header downloads the current conversation as a `.md` file (`rowToMarkdown` maps each row type -- you/omni/error/image/quote/news -- to a markdown line or block, joined under a header with the export timestamp), built entirely client-side via `Blob` + object URL + a programmatic anchor click, no backend route involved.
+**Why:** Continuing the feature list "biggest to smallest" — #11 on the list. A caveman subagent review caught one minor issue, fixed: the download anchor was clicked without being appended to the DOM first, a known non-standard-compliant pattern that some browsers/WebViews don't reliably dispatch -- fixed by appending it before `.click()` and removing it after. An ecc security review confirmed the filename and content-type are fixed literals with no attacker-controlled input, and raw AI/user text embedded unescaped in the markdown is a non-issue since this is a personal local export file, not rendered as HTML.
+**Files:** `client/src/ChatPage.jsx`.
+**Tokens:** Subagent reviews only — caveman-reviewer: 73,961; ecc security-reviewer: 70,997. Main implementation cost isn't exposed by any available tool.
+
+## Regenerate button for the last answer
+
+**Date:** 2026-09-17 15:39
 **What:** A Regenerate button on the most recent assistant message re-sends the same prompt through `sendChat` and replaces that message's text/suggestions/pin state in place, showing typing dots while it's in flight. Failed answers also get a retry affordance, since the original prompt is preserved on the row instead of being dropped.
 **Why:** Continuing the feature list "biggest to smallest" — #9 on the list. A caveman subagent review caught two real issues, both fixed: (1) on a failed regenerate, the row was being replaced with a bare error object that dropped the `prompt` field, permanently losing the ability to retry without re-typing the message -- fixed by keeping `prompt` on the error row and adding a matching retry button for error rows; (2) `submit()`'s guard didn't check `regeneratingId`, so a user could fire a brand-new message while a regenerate was still in flight, racing two concurrent `sendChat` calls with no ordering guarantee -- fixed by adding `regeneratingId` to both the guard and the send button's `disabled` condition. An ecc security review confirmed no new backend surface (same `/chat` endpoint, same existing rate limiter) and no injection risk (the prompt used for regeneration always originates from the user's own prior message, never from response text).
 **Files:** `client/src/ChatPage.jsx`.
