@@ -285,7 +285,17 @@
 
     <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
       <div class="card">
-        <div class="card-head"><span class="tag">Feature</span><h2>Privacy notice panel</h2><span class="entry-date">2026-09-17 (pending commit)</span></div>
+        <div class="card-head"><span class="tag">Feature</span><h2>More quick-action chips</h2><span class="entry-date">2026-09-17 (pending commit)</span></div>
+        <div class="field"><span class="field-label">What</span><p>Added Fix grammar, Brainstorm, and Translate to the existing Summarize/Explain code/Draft email quick-action chips.</p></div>
+        <div class="field"><span class="field-label">Why</span><p>Continuing the feature list "biggest to smallest" — a smaller polish item. Static data-array addition, no new logic, no subagent review run.</p></div>
+        <div class="field"><span class="field-label">Files</span><div class="files"><code>client/src/ChatPage.jsx</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Not tracked — no token-usage API available for this unit of work.</p></div>
+      </div>
+    </div>
+
+    <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
+      <div class="card">
+        <div class="card-head"><span class="tag">Feature</span><h2>Privacy notice panel</h2><span class="entry-date">2026-09-17 16:57</span></div>
         <div class="field"><span class="field-label">What</span><p>A "Privacy" link in the disclaimer line opens an overlay (reusing the pinned-answers panel styling) with plain-language text on what's stored, why, and what isn't done with it.</p></div>
         <div class="field"><span class="field-label">Why</span><p>Continuing the feature list "biggest to smallest," a no-credential item after the user chose to skip #26 Email integration rather than build against a provider requiring a key. A caveman subagent review caught one wording accuracy issue: the notice claimed extracted facts "stay on this server," but the extraction request itself routes through the same cloud-first adapter pool as chat — reworded to be precise about what actually stays local.</p></div>
         <div class="field"><span class="field-label">Files</span><div class="files"><code>client/src/ChatPage.jsx</code><code>client/src/styles.css</code></div></div>

@@ -7,6 +7,9 @@ const QUICK_ACTIONS = [
   { label: 'Summarize', prefill: 'Summarize the following:\n\n' },
   { label: 'Explain code', prefill: 'Explain what this code does:\n\n' },
   { label: 'Draft email', prefill: 'Draft a professional email about:\n\n' },
+  { label: 'Fix grammar', prefill: 'Fix the grammar and spelling in the following, keeping the meaning the same:\n\n' },
+  { label: 'Brainstorm', prefill: 'Brainstorm ideas for:\n\n' },
+  { label: 'Translate', prefill: 'Translate the following into English:\n\n' },
 ];
 
 const MODE_ACTIONS = [

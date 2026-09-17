@@ -15,9 +15,17 @@ Newest entries at the top.
 
 ---
 
-## Privacy notice panel
+## More quick-action chips
 
 **Date:** 2026-09-17 (pending commit)
+**What:** Added Fix grammar, Brainstorm, and Translate to the existing Summarize/Explain code/Draft email quick-action chips.
+**Why:** Continuing the feature list "biggest to smallest" — one of the smaller remaining polish items. A static data-array addition with no new logic, so no subagent review was run.
+**Files:** `client/src/ChatPage.jsx`.
+**Tokens:** Not tracked (no token-usage API available for this unit of work).
+
+## Privacy notice panel
+
+**Date:** 2026-09-17 16:57
 **What:** A "Privacy" link in the disclaimer line opens an overlay (reusing the existing pinned-answers panel styling) with plain-language text on what's stored (conversation history, extracted facts, pin/feedback state), why (so the conversation survives a reload and answers stay relevant), and what isn't done with it (no ads, no selling, no sharing beyond the AI backend actually generating that answer).
 **Why:** Continuing the feature list "biggest to smallest," one of the remaining no-credential items after the user chose to skip #26 Email integration (no email-sending provider configured) rather than build against a provider they'd have to sign up for and hand me a key for. A caveman subagent review confirmed the overlay's a11y pattern faithfully copies the existing pinned-answers overlay (same pre-existing lack of Escape/focus-trap handling, not a new regression), and caught one wording accuracy issue: the notice said extracted facts "stay on this server," but the extraction call itself is routed through the same cloud-first adapter pool as regular chat (`server/router.js`), so the *request* can leave the server even though the resulting fact is stored locally -- reworded to "the extracted fact is stored only on this server" to be precise about what actually stays local.
 **Files:** `client/src/ChatPage.jsx`, `client/src/styles.css`.
