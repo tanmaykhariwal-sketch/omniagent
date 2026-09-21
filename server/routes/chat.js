@@ -6,10 +6,9 @@ const { getMemoryContext, extractAndSaveMemory } = require('../services/memory')
 const { getPersonaInstruction } = require('../services/personas');
 const { getFollowUpSuggestions } = require('../services/suggestions');
 const { getWebGroundingContext } = require('../services/web-grounding');
+const { chatBodySchema, pinBodySchema, feedbackBodySchema, validateBody } = require('../core/validation');
 
 const chatRouter = express.Router();
-
-const MAX_PROMPT_LENGTH = 4000;
 
 const MAX_HISTORY = 50;
 
@@ -29,13 +28,10 @@ chatRouter.get('/pinned', requireAuth, (req, res) => {
   res.json({ pinned: rows });
 });
 
-chatRouter.post('/queries/:id/pin', requireAuth, (req, res) => {
+chatRouter.post('/queries/:id/pin', requireAuth, validateBody(pinBodySchema), (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
     return res.status(400).json({ error: 'invalid query id' });
-  }
-  if (typeof (req.body && req.body.pinned) !== 'boolean') {
-    return res.status(400).json({ error: 'pinned must be a boolean' });
   }
   const pinned = req.body.pinned ? 1 : 0;
   const db = getDb();
@@ -48,15 +44,12 @@ chatRouter.post('/queries/:id/pin', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-chatRouter.post('/queries/:id/feedback', requireAuth, (req, res) => {
+chatRouter.post('/queries/:id/feedback', requireAuth, validateBody(feedbackBodySchema), (req, res) => {
   const id = Number(req.params.id);
   if (!Number.isInteger(id)) {
     return res.status(400).json({ error: 'invalid query id' });
   }
-  const feedback = req.body && req.body.feedback;
-  if (feedback !== 'up' && feedback !== 'down' && feedback !== null) {
-    return res.status(400).json({ error: "feedback must be 'up', 'down', or null" });
-  }
+  const feedback = req.body.feedback;
   const db = getDb();
   const result = db
     .prepare('UPDATE queries SET feedback = ? WHERE id = ? AND user_id = ?')
@@ -67,20 +60,13 @@ chatRouter.post('/queries/:id/feedback', requireAuth, (req, res) => {
   res.json({ ok: true });
 });
 
-chatRouter.post('/chat', requireAuth, async (req, res) => {
-  const raw = req.body || {};
-  const prompt = typeof raw.prompt === 'string' ? raw.prompt.trim() : '';
-  if (!prompt) {
-    return res.status(400).json({ error: 'prompt required' });
-  }
-  if (prompt.length > MAX_PROMPT_LENGTH) {
-    return res.status(400).json({ error: `prompt too long (max ${MAX_PROMPT_LENGTH} characters)` });
-  }
+chatRouter.post('/chat', requireAuth, validateBody(chatBodySchema), async (req, res) => {
+  const { prompt, persona, webSearch } = req.body;
 
   try {
     const memoryContext = getMemoryContext(req.session.userId);
-    const personaInstruction = getPersonaInstruction(raw.persona);
-    const grounding = raw.webSearch === true ? await getWebGroundingContext(prompt) : null;
+    const personaInstruction = getPersonaInstruction(persona);
+    const grounding = webSearch === true ? await getWebGroundingContext(prompt) : null;
     const extraContext =
       [personaInstruction, grounding?.context, memoryContext].filter(Boolean).join('\n\n') || null;
     const { text, backendUsed, category } = await route(prompt, extraContext);

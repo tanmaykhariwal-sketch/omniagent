@@ -73,19 +73,29 @@ function createApp() {
 }
 
 if (require.main === module) {
-  if (process.env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
+  // Validates type/format only (a typo'd PORT or malformed OLLAMA_BASE_URL
+  // fails fast with a clear message); the two checks below are cross-field
+  // business rules envalid's per-var validation can't express on its own.
+  let env;
+  try {
+    env = require('./core/env').validateEnv();
+  } catch (err) {
+    console.error(err.message);
+    process.exit(1);
+  }
+
+  if (env.NODE_ENV === 'production' && !process.env.SESSION_SECRET) {
     console.error('SESSION_SECRET is required in production -- refusing to start with the public dev-secret fallback.');
     process.exit(1);
   }
-  const hasLocalModel = ['LOCAL_CODING_MODEL', 'LOCAL_GENERAL_MODEL'].some((k) => !!process.env[k]);
-  const hasOpenRouter = !!process.env.OPENROUTER_API_KEY;
+  const hasLocalModel = !!env.LOCAL_CODING_MODEL || !!env.LOCAL_GENERAL_MODEL;
+  const hasOpenRouter = !!env.OPENROUTER_API_KEY;
   if (!hasLocalModel && !hasOpenRouter) {
     console.error('No backend configured. Set LOCAL_CODING_MODEL/LOCAL_GENERAL_MODEL (Ollama) and/or OPENROUTER_API_KEY in .env before starting.');
     process.exit(1);
   }
   const app = createApp();
-  const port = process.env.PORT || 3000;
-  app.listen(port, () => console.log(`OmniAgent server listening on ${port}`));
+  app.listen(env.PORT, () => console.log(`OmniAgent server listening on ${env.PORT}`));
 }
 
 module.exports = { createApp };

@@ -1,4 +1,5 @@
 const webSearch = require('../adapters/web-search');
+const { memoizeAsync } = require('../core/cache');
 
 const MAX_RESULTS_IN_CONTEXT = 5;
 // The adapter's own fetch has a 15s internal timeout, but a search grounding
@@ -6,6 +7,14 @@ const MAX_RESULTS_IN_CONTEXT = 5;
 // that much latency -- cap it tighter, same reasoning as suggestions.js's
 // SUGGESTION_TIMEOUT_MS.
 const GROUNDING_TIMEOUT_MS = 6000;
+
+// The same or a very similar question asked again shortly after doesn't need
+// a fresh DuckDuckGo round-trip -- cache raw search results for a couple of
+// minutes to cut latency and avoid hammering a free, no-key endpoint.
+const searchCached = memoizeAsync((query) => webSearch.search(query), {
+  ttl: 2 * 60 * 1000,
+  keyFn: (query) => query,
+});
 
 function withTimeout(promise, ms) {
   let timer;
@@ -34,7 +43,7 @@ function buildContext(results) {
 // break the chat response it rides alongside.
 async function getWebGroundingContext(query) {
   try {
-    const results = await withTimeout(webSearch.search(query), GROUNDING_TIMEOUT_MS);
+    const results = await withTimeout(searchCached(query), GROUNDING_TIMEOUT_MS);
     if (!results || results.length === 0) return null;
     return { context: buildContext(results), sources: results.slice(0, MAX_RESULTS_IN_CONTEXT) };
   } catch {

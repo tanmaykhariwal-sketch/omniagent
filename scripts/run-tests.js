@@ -25,7 +25,13 @@ const files = findTestFiles(testDir);
 let failed = false;
 for (const file of files) {
   console.log(`\n--- ${path.relative(testDir, file)} ---`);
-  const result = spawnSync(process.execPath, [file], { stdio: 'inherit' });
+  const result = spawnSync(process.execPath, [file], {
+    stdio: 'inherit',
+    // Signals test-only code (e.g. server/core/cache.js) to skip behavior
+    // that's only safe outside a test process, such as caching responses
+    // across the multiple test() blocks that share one process per file.
+    env: { ...process.env, NODE_ENV: 'test' },
+  });
   if (result.status !== 0) failed = true;
 }
 

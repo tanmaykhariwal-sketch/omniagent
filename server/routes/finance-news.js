@@ -2,10 +2,24 @@ const express = require('express');
 const { requireAuth } = require('./auth');
 const yahooFinance = require('../adapters/yahoo-finance');
 const googleNews = require('../adapters/google-news');
+const { memoizeAsync } = require('../core/cache');
 
 const MAX_SYMBOL_LENGTH = 12;
 const MAX_QUERY_LENGTH = 200;
 const SYMBOL_PATTERN = /^[A-Za-z0-9.\-^=]+$/;
+
+// Short-lived caches, not a data store: a repeated request for the same
+// symbol/query within the window reuses the last answer instead of hitting
+// Yahoo Finance/Google News again -- both are free, no-key, no-SLA APIs
+// that can throttle a caller making the same request repeatedly.
+const getQuoteCached = memoizeAsync((symbol) => yahooFinance.getQuote(symbol), {
+  ttl: 30 * 1000, // a quote is only ever "current" for a short window anyway
+  keyFn: (symbol) => symbol,
+});
+const searchNewsCached = memoizeAsync((query) => googleNews.search(query), {
+  ttl: 5 * 60 * 1000, // headlines don't change meaningfully minute to minute
+  keyFn: (query) => query,
+});
 
 const financeNewsRouter = express.Router();
 
@@ -17,7 +31,7 @@ financeNewsRouter.get('/finance', requireAuth, async (req, res) => {
   }
 
   try {
-    const quote = await yahooFinance.getQuote(symbol);
+    const quote = await getQuoteCached(symbol);
     res.json({ quote });
   } catch (err) {
     console.warn(`[finance-news] quote lookup failed: ${err.message}`);
@@ -33,7 +47,7 @@ financeNewsRouter.get('/news', requireAuth, async (req, res) => {
   }
 
   try {
-    const headlines = await googleNews.search(query);
+    const headlines = await searchNewsCached(query);
     res.json({ headlines });
   } catch (err) {
     console.warn(`[finance-news] news search failed: ${err.message}`);
