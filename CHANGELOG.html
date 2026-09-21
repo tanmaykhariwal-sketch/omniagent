@@ -283,6 +283,16 @@
 
   <div class="timeline">
 
+    <div class="entry" style="--tag-color:var(--feature); --tag-soft:var(--feature-soft)">
+      <div class="card">
+        <div class="card-head"><span class="tag">Feature</span><h2>Render assistant messages as Markdown</h2><span class="entry-date">2026-09-21 (pending commit)</span></div>
+        <div class="field"><span class="field-label">What</span><p>Added <code>react-markdown</code> + <code>remark-gfm</code> (client-only). Assistant (<code>omni</code>-role) messages and pinned-panel previews now render as formatted markdown -- bold, lists, tables, and fenced code blocks (styled with a background box and monospace font) -- instead of raw text with literal asterisks/backticks. User-typed and error messages stay plain text, unchanged.</p></div>
+        <div class="field"><span class="field-label">Why</span><p>Explicit request to find and install something useful from GitHub, with blanket permission. Picked <code>remarkjs/react-markdown</code> -- a real, visible gap: coding-category answers routinely came back with fenced code blocks and bold text that rendered as raw markdown syntax rather than formatted output. A caveman subagent review confirmed no XSS risk (no <code>rehype-raw</code>, no <code>dangerouslySetInnerHTML</code> added anywhere; react-markdown's default pipeline strips raw HTML) and that the markdown path is strictly scoped to AI-generated text, never user-typed input. It caught two real issues, both fixed: the pinned-answers panel still rendered AI text as plain text while the live chat bubble was now formatted -- a visible inconsistency, fixed by rendering pinned previews through the same markdown pipeline; and the existing <code>.pinned-item-response</code>/<code>.message-text</code> classes' own <code>white-space: pre-wrap</code> rules would have won a CSS specificity tie against the new <code>.markdown-body</code> override due to source order, silently reintroducing raw-whitespace handling inside rendered markdown -- fixed by removing the now-redundant rule and scoping whitespace handling to <code>.markdown-body</code> and its <code>pre</code>/<code>code</code> descendants specifically. Verified live: sent a real coding-category prompt, confirmed the fenced code block rendered with proper styling and no console errors.</p></div>
+        <div class="field"><span class="field-label">Files</span><div class="files"><code>client/package.json</code><code>client/package-lock.json</code><code>client/src/ChatPage.jsx</code><code>client/src/styles.css</code></div></div>
+        <div class="field"><span class="field-label">Tokens</span><p>Subagent review only — caveman-reviewer: 78,707. Main implementation cost isn't exposed by any available tool.</p></div>
+      </div>
+    </div>
+
     <div class="entry" style="--tag-color:var(--fix); --tag-soft:var(--fix-soft)">
       <div class="card">
         <div class="card-head"><span class="tag">Fix</span><h2>Production readiness: CI, security headers, request logging</h2><span class="entry-date">2026-09-17 (pending commit)</span></div>

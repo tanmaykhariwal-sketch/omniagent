@@ -1,4 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { sendChat, generateImage, transcribeAudio, getQuote, searchNews, getHistory, analyzeFile, getPinned, togglePin, sendFeedback } from './api.js';
 import { speak, isSpeechSynthesisSupported, AudioRecorder, isRecordingSupported } from './speech.js';
 import { initTheme, applyTheme } from './theme.js';
@@ -794,7 +796,15 @@ export default function ChatPage() {
                       )}
                     </div>
                   )}
-                  {regeneratingId === row.id ? <TypingDots /> : <p className="message-text">{row.text}</p>}
+                  {regeneratingId === row.id ? (
+                    <TypingDots />
+                  ) : row.role === 'omni' ? (
+                    <div className="message-text markdown-body">
+                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{row.text}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p className="message-text">{row.text}</p>
+                  )}
                   {row.role === 'omni' && row.sources?.length > 0 && (
                     <ul className="sources-list">
                       {row.sources.map((s, i) =>
@@ -976,7 +986,9 @@ export default function ChatPage() {
               pinnedItems.map((item) => (
                 <div className="pinned-item" key={item.id}>
                   <p className="pinned-item-prompt">{item.prompt}</p>
-                  <p className="pinned-item-response">{item.response}</p>
+                  <div className="pinned-item-response markdown-body">
+                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.response}</ReactMarkdown>
+                  </div>
                   <button className="chip" type="button" onClick={() => unpinFromPanel(item.id)}>
                     {t(lang, 'unpin')}
                   </button>
