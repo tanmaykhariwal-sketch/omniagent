@@ -1,10 +1,42 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import toast, { Toaster } from 'react-hot-toast';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import SyntaxHighlighter from 'react-syntax-highlighter/dist/esm/prism-light';
+import javascript from 'react-syntax-highlighter/dist/esm/languages/prism/javascript';
+import jsx from 'react-syntax-highlighter/dist/esm/languages/prism/jsx';
+import typescript from 'react-syntax-highlighter/dist/esm/languages/prism/typescript';
+import tsx from 'react-syntax-highlighter/dist/esm/languages/prism/tsx';
+import python from 'react-syntax-highlighter/dist/esm/languages/prism/python';
+import bash from 'react-syntax-highlighter/dist/esm/languages/prism/bash';
+import json from 'react-syntax-highlighter/dist/esm/languages/prism/json';
+import css from 'react-syntax-highlighter/dist/esm/languages/prism/css';
+import markup from 'react-syntax-highlighter/dist/esm/languages/prism/markup';
+import sql from 'react-syntax-highlighter/dist/esm/languages/prism/sql';
+import java from 'react-syntax-highlighter/dist/esm/languages/prism/java';
+import go from 'react-syntax-highlighter/dist/esm/languages/prism/go';
+import { oneLight, oneDark } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import { sendChat, generateImage, transcribeAudio, getQuote, searchNews, getHistory, analyzeFile, getPinned, togglePin, sendFeedback } from './api.js';
 import { speak, isSpeechSynthesisSupported, AudioRecorder, isRecordingSupported } from './speech.js';
 import { initTheme, applyTheme } from './theme.js';
 import { LANGUAGES, initLanguage, setStoredLanguage, t } from './i18n.js';
+
+// A curated set covering the categories OmniAgent's coding adapter answers
+// with, not the full Prism grammar library -- keeps the bundle from
+// re-inflating to nearly 1MB (the full `Prism` export registers every
+// language up front).
+SyntaxHighlighter.registerLanguage('javascript', javascript);
+SyntaxHighlighter.registerLanguage('jsx', jsx);
+SyntaxHighlighter.registerLanguage('typescript', typescript);
+SyntaxHighlighter.registerLanguage('tsx', tsx);
+SyntaxHighlighter.registerLanguage('python', python);
+SyntaxHighlighter.registerLanguage('bash', bash);
+SyntaxHighlighter.registerLanguage('json', json);
+SyntaxHighlighter.registerLanguage('css', css);
+SyntaxHighlighter.registerLanguage('markup', markup);
+SyntaxHighlighter.registerLanguage('sql', sql);
+SyntaxHighlighter.registerLanguage('java', java);
+SyntaxHighlighter.registerLanguage('go', go);
 
 const QUICK_ACTIONS = [
   { label: 'Summarize', prefill: 'Summarize the following:\n\n' },
@@ -64,6 +96,80 @@ function TypingDots() {
   );
 }
 
+// react-markdown's own `code` renders a plain <pre><code> element for fenced
+// blocks -- this override swaps that specific element for a syntax-highlighted
+// one, matching the current theme, while every other markdown element (p, ul,
+// table, etc.) still goes through react-markdown's default safe rendering.
+const HIGHLIGHTED_LANGUAGES = new Set([
+  'javascript',
+  'jsx',
+  'typescript',
+  'tsx',
+  'python',
+  'bash',
+  'json',
+  'css',
+  'html',
+  'sql',
+  'java',
+  'go',
+]);
+
+// react-syntax-highlighter registers Prism's HTML grammar under its own
+// displayName, "markup" -- fence code as ```html in practice, so map that
+// name onto the registered key rather than expecting a matching registration.
+const LANGUAGE_ALIASES = { html: 'markup' };
+
+function CodeBlock({ theme, className, children, ...props }) {
+  const match = /language-(\w+)/.exec(className || '');
+  const fenceLanguage = match?.[1];
+  const language = fenceLanguage && (LANGUAGE_ALIASES[fenceLanguage] || fenceLanguage);
+  if (!fenceLanguage || !HIGHLIGHTED_LANGUAGES.has(fenceLanguage)) {
+    return (
+      <code className={className} {...props}>
+        {children}
+      </code>
+    );
+  }
+  return (
+    <SyntaxHighlighter
+      language={language}
+      style={theme === 'dark' ? oneDark : oneLight}
+      customStyle={{ margin: 0, background: 'transparent', padding: 0 }}
+    >
+      {String(children).replace(/\n$/, '')}
+    </SyntaxHighlighter>
+  );
+}
+
+function markdownComponents(theme) {
+  return { code: (props) => <CodeBlock theme={theme} {...props} /> };
+}
+
+// franc-min returns ISO 639-3 codes; map only the languages OmniAgent's UI
+// actually supports (client/src/i18n.js) -- any other detected language, or
+// 'und' (undetermined), is ignored rather than switching the UI to a
+// language it can't render.
+const FRANC_TO_UI_LANGUAGE = { eng: 'en', spa: 'es', hin: 'hi' };
+// A trigram classifier over 3 similar-alphabet languages (en/es/hi-latin
+// overlap less, but en/es share a lot of trigrams) is genuinely unreliable
+// under ~40 chars -- a short, common English phrase can misfire as Spanish.
+// Below this length, skip detection rather than risk an unexplained language
+// switch over a low-confidence guess.
+const MIN_CHARS_FOR_LANGUAGE_DETECTION = 40;
+
+// franc-min bundles n-gram data for its whole language set and isn't needed
+// until someone actually sends a long-enough chat message -- load it lazily
+// instead of paying its ~87KB gzipped cost in the main bundle for everyone.
+let francModulePromise = null;
+async function detectUiLanguage(text) {
+  if (text.length < MIN_CHARS_FOR_LANGUAGE_DETECTION) return null;
+  francModulePromise ||= import('franc-min');
+  const { franc } = await francModulePromise;
+  const code = franc(text, { minLength: MIN_CHARS_FOR_LANGUAGE_DETECTION });
+  return FRANC_TO_UI_LANGUAGE[code] || null;
+}
+
 function PaperclipIcon() {
   return (
     <svg viewBox="0 0 16 16" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
@@ -106,14 +212,6 @@ function CopyIcon() {
     <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
       <rect x="5.5" y="5.5" width="8" height="8" rx="1.5" />
       <path d="M3 10.5V3.5a1 1 0 0 1 1-1H10" />
-    </svg>
-  );
-}
-
-function CheckIcon() {
-  return (
-    <svg viewBox="0 0 16 16" width="13" height="13" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-      <path d="M3 8.5l3 3 7-7" />
     </svg>
   );
 }
@@ -249,10 +347,9 @@ export default function ChatPage() {
   const [transcribing, setTranscribing] = useState(false);
   const [theme, setTheme] = useState('light');
   const [lang, setLang] = useState('en');
-  const [copiedId, setCopiedId] = useState(null);
-  const [sharedId, setSharedId] = useState(null);
   const [regeneratingId, setRegeneratingId] = useState(null);
   const [privacyOpen, setPrivacyOpen] = useState(false);
+  const markdownComponentsForTheme = useMemo(() => markdownComponents(theme), [theme]);
   const [uploadingFile, setUploadingFile] = useState(false);
   const [persona, setPersona] = useState(null);
   const [webSearchOn, setWebSearchOn] = useState(false);
@@ -263,6 +360,9 @@ export default function ChatPage() {
   const recorderRef = useRef(null);
   const chatEndRef = useRef(null);
   const fileInputRef = useRef(null);
+  // Once the user picks a language explicitly, auto-detection must never
+  // silently override that choice again this session.
+  const languageManuallySetRef = useRef(false);
 
   useEffect(() => {
     setTheme(initTheme());
@@ -314,17 +414,16 @@ export default function ChatPage() {
     applyTheme(next);
   }
 
-  async function copyText(id, text) {
+  async function copyText(text) {
     try {
       await navigator.clipboard.writeText(text);
-      setCopiedId(id);
-      setTimeout(() => setCopiedId((current) => (current === id ? null : current)), 1500);
+      toast.success('Copied to clipboard');
     } catch {
-      // clipboard access denied/unsupported -- text is still selectable manually
+      toast.error('Could not copy — try selecting the text manually');
     }
   }
 
-  async function shareText(id, text) {
+  async function shareText(text) {
     if (navigator.share) {
       try {
         await navigator.share({ text });
@@ -337,10 +436,9 @@ export default function ChatPage() {
     }
     try {
       await navigator.clipboard.writeText(text);
-      setSharedId(id);
-      setTimeout(() => setSharedId((current) => (current === id ? null : current)), 1500);
+      toast.success('Copied for sharing');
     } catch {
-      // clipboard access denied/unsupported -- nothing more we can do
+      toast.error('Could not copy — try selecting the text manually');
     }
   }
 
@@ -520,6 +618,11 @@ export default function ChatPage() {
       return;
     }
 
+    if (!languageManuallySetRef.current) {
+      const detectedLanguage = await detectUiLanguage(prompt);
+      if (detectedLanguage && detectedLanguage !== lang) changeLanguage(detectedLanguage);
+    }
+
     setRows((r) => appendRows(r, { id, role: 'you', text: prompt }, { id: `${id}-status`, role: 'typing' }));
 
     try {
@@ -597,6 +700,17 @@ export default function ChatPage() {
 
   return (
     <div className="app-shell">
+      <Toaster
+        position="bottom-center"
+        toastOptions={{
+          style: {
+            background: 'var(--surface)',
+            color: 'var(--text)',
+            border: '1px solid var(--border)',
+            fontSize: '14px',
+          },
+        }}
+      />
       <header className="app-header">
         <p className="wordmark">OmniAgent</p>
         <div className="header-actions">
@@ -723,11 +837,11 @@ export default function ChatPage() {
                       <button
                         className="speak-btn"
                         type="button"
-                        onClick={() => copyText(row.id, row.text)}
-                        title={copiedId === row.id ? 'Copied!' : 'Copy'}
-                        aria-label={copiedId === row.id ? 'Copied' : 'Copy message'}
+                        onClick={() => copyText(row.text)}
+                        title="Copy"
+                        aria-label="Copy message"
                       >
-                        {copiedId === row.id ? <CheckIcon /> : <CopyIcon />}
+                        <CopyIcon />
                       </button>
                       {isSpeechSynthesisSupported() && (
                         <button
@@ -743,11 +857,11 @@ export default function ChatPage() {
                       <button
                         className="speak-btn"
                         type="button"
-                        onClick={() => shareText(row.id, row.text)}
-                        title={sharedId === row.id ? 'Copied for sharing!' : 'Share'}
-                        aria-label={sharedId === row.id ? 'Copied for sharing' : 'Share this answer'}
+                        onClick={() => shareText(row.text)}
+                        title="Share"
+                        aria-label="Share this answer"
                       >
-                        {sharedId === row.id ? <CheckIcon /> : <ShareIcon />}
+                        <ShareIcon />
                       </button>
                       {row.queryId && (
                         <button
@@ -800,7 +914,9 @@ export default function ChatPage() {
                     <TypingDots />
                   ) : row.role === 'omni' ? (
                     <div className="message-text markdown-body">
-                      <ReactMarkdown remarkPlugins={[remarkGfm]}>{row.text}</ReactMarkdown>
+                      <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponentsForTheme}>
+                        {row.text}
+                      </ReactMarkdown>
                     </div>
                   ) : (
                     <p className="message-text">{row.text}</p>
@@ -944,7 +1060,10 @@ export default function ChatPage() {
                 key={l.code}
                 className={`chip mode-chip ${lang === l.code ? 'active' : ''}`}
                 type="button"
-                onClick={() => changeLanguage(l.code)}
+                onClick={() => {
+                  languageManuallySetRef.current = true;
+                  changeLanguage(l.code);
+                }}
               >
                 {l.label}
               </button>
@@ -987,7 +1106,9 @@ export default function ChatPage() {
                 <div className="pinned-item" key={item.id}>
                   <p className="pinned-item-prompt">{item.prompt}</p>
                   <div className="pinned-item-response markdown-body">
-                    <ReactMarkdown remarkPlugins={[remarkGfm]}>{item.response}</ReactMarkdown>
+                    <ReactMarkdown remarkPlugins={[remarkGfm]} components={markdownComponentsForTheme}>
+                      {item.response}
+                    </ReactMarkdown>
                   </div>
                   <button className="chip" type="button" onClick={() => unpinFromPanel(item.id)}>
                     {t(lang, 'unpin')}
